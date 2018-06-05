@@ -72,13 +72,15 @@ or: start from the end, and work backwards? (this is what i end up doing)
 
 ; here is a rewriter for the above:
 (define (parse-ellipses-pattern stx)
-  (foldr
-   (λ (x acc)
-     (if (and (not (empty? acc))
-              (equal? (second acc) '...))
-         `(pa ,(if (list? x) (parse-ellipses-pattern x) x) ,(third acc))
-         `(pl ,(if (list? x) (parse-ellipses-pattern x) x) ,acc)))
-   '() stx))
+  (if (not (list? stx))
+      stx
+      (foldr
+       (λ (x acc)
+         (if (and (not (empty? acc))
+                  (equal? (second acc) '...))
+             `(pa ,(if (list? x) (parse-ellipses-pattern x) x) ,(third acc))
+             `(pl ,(if (list? x) (parse-ellipses-pattern x) x) ,acc)))
+       '() stx)))
 
 
 ; some tests
@@ -88,14 +90,14 @@ or: start from the end, and work backwards? (this is what i end up doing)
 
 ; the match algorithm
 (require racket/hash)
+(define (bind x f)
+  (if (equal? 'no-match x)
+      'no-match
+      (f x)))
 (define (pattern-match types c-env arg pat)
   #;(println "pm")
   #;(println arg)
   #;(println pat)
-  (define (bind x f)
-    (if (equal? 'no-match x)
-        'no-match
-        (f x)))
   (define (append-hashes h1 h2)
     (hash-union
      h1
@@ -313,3 +315,60 @@ and the parameters are captured as pattern variable (modulo evaluation
 strategy of course; lead into discussion of macros)
 |#
 
+(define (interpret types env prog)
+  (define (constructor-id? id)
+    (hash-has-key? types id))
+  (define I (curry interpret types env))
+  (match prog
+    [(? number? n) n]
+    [(? constructor-id? id) id]
+    [`(,(? constructor-id? id) ,(and xs (not (== '→))) ...)
+     `(,id ,@(map I xs))]
+    [(? symbol? id) (hash-ref env id)]
+    #;[`(,pats ... → ,body) `(c: ,env ,body ,@pats)]
+    #;[`(λ ,cases ...) `(c-fall: ,env ,@cases)]
+    ; here, for now we'll interpret bare lists as lists (not app)
+    [(? list? xs)
+     #:when (member '... xs)
+     (I (parse-ellipses-pattern xs))] ; hacky
+    [`(pa ,p ,ps) (append (I p) (I ps))]
+    [`(pl ,p ,ps) (cons (I p) (I ps))]
+    [`(,xs ...) (map I xs)]))
+
+
+(define (runtime-match types pat-tems source)
+  (match pat-tems
+    [`() 'no-match]
+    [`((,(app parse-ellipses-pattern pattern) ,template) ,other-clauses ...)
+     (define destructure (curry pattern-match types #hash()))
+     (define restructure (curry interpret types))
+     (define environment (destructure source pattern))
+     (if (equal? 'no-match environment)
+         (runtime-match types other-clauses source)
+         (restructure environment template))]))
+
+(check-equal? (runtime-match #hash() '((a 2)) '1)
+              2)
+
+(check-equal? (runtime-match #hash() '(((a b) b)) '(1 2))
+              2)
+
+(check-equal? (runtime-match #hash() '(((a ...) (a ...))) '(1 2))
+              '(1 2))
+
+
+(check-equal? (runtime-match #hash() '(((a b ...) (b ... (a)))) '(1 2 3))
+              '(2 3 (1)))
+
+(check-equal? (runtime-match #hash() '(((a b ...) (b ... (a)))) '(1))
+              '((1)))
+
+(define-syntax-rule (ratch source clauses ...)
+  (runtime-match #hash() '(clauses ...) source))
+
+(check-equal? (ratch '(let ([a 1] [b 2]) 0)
+                [(form ([id init] ...) body)
+                 (id ... init ...)])
+              (match '(let ([a 1] [b 2]) 0)
+                [`(,form ([,id ,init] ...) ,body)
+                 `(,@id ,@init)]))
