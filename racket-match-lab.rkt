@@ -75,8 +75,8 @@ pa = pappend:
    (λ (x acc)
      (if (and (not (empty? acc))
               (equal? (second acc) '...))
-         `(pa ,x ,(third acc))
-         `(pl ,x ,acc)))
+         `(pa ,(if (list? x) (parse-ellipses-pattern x) x) ,(third acc))
+         `(pl ,(if (list? x) (parse-ellipses-pattern x) x) ,acc)))
    '() stx))
 
 (check-equal? (parse-ellipses-pattern '(1 2 3 d ... 5 f ... 7 8))
@@ -123,11 +123,26 @@ return no match.
 ; lets try to integrate this in basic pm code:
 (require racket/hash)
 (define (pattern-match types c-env arg pat)
-  (println "pm")
-  (println arg)
-  (println pat)
+  #;(println "pm")
+  #;(println arg)
+  #;(println pat)
+  (define (bind x f)
+    (if (equal? 'no-match x)
+        'no-match
+        (f x)))
+  (define (append-hashes h1 h2)
+    (hash-union
+     h1
+     (make-hash (hash-map h2 (λ (k v) (cons k (list v)))))
+     #:combine (λ (a b) (append a b))))
+  (define (accumulate-over-seg x acc)
+    (bind acc
+          (λ (_)
+            (bind (pattern-match types (hash) x (second pat))
+                  (curry append-hashes acc)))))
   (define constructor-id?
     (curry hash-has-key? types))
+  (define Pm (curry pattern-match types c-env))
   (cond [(and (or (number? pat) (constructor-id? pat))
               (equal? arg pat))
          c-env]
@@ -139,55 +154,31 @@ return no match.
               (equal? (first pat) 'pl)
               (list? arg)
               (not (empty? arg)))
-         #;(println "pl case")
-         (if (or (equal? 'no-match (pattern-match types c-env (first arg) (second pat) ))
-                 (equal? 'no-match (pattern-match types c-env (rest arg) (third pat) )))
-             'no-match
-             (hash-union (pattern-match types c-env (first arg) (second pat) )
-                         (pattern-match types c-env (rest arg)(third pat) )))
-         ]
+         (bind (Pm (first arg) (second pat))
+               (λ (env-1)
+                 (bind (Pm (rest arg) (third pat))
+                       (curry hash-union env-1))))]
         [(and (list? pat)
               (not (empty? pat))
               (equal? (first pat) 'pa)
               (list? arg)
               (or (not (empty? arg)) (empty? (third pat))))
-         #;(println "pa case")
          (define (try init-seg-tem end-seg-tem)
-           #;(displayln "try")
-           #;(displayln end-seg-tem)
-           #;(displayln (third pat))
            (match init-seg-tem
-             ['() (println "recursed to empty case")
-                  (if (equal? 'no-match (pattern-match types c-env end-seg-tem (third pat)))
-                      'no-match
-                      (hash-set (pattern-match types c-env end-seg-tem (third pat)) (second pat) init-seg-tem))]
-             [_ (match (pattern-match types c-env end-seg-tem (third pat))
+             ['() (bind (Pm end-seg-tem (third pat))
+                        (curryr hash-set (second pat) init-seg-tem))]
+             [_ (match (Pm end-seg-tem (third pat))
                   ['no-match (try (drop-right init-seg-tem 1)
                                   (cons (last init-seg-tem) end-seg-tem))]
                   [new-env
-                   #;(println "newenv case")
-                   (define res (foldl (λ (x acc)
-                                        (if (equal? 'no-match acc)
-                                            'no-match
-                                            (if (equal? 'no-match (pattern-match types (hash) x (second pat)))
-                                                'no-match
-                                                (hash-union
-                                                 acc
-                                                 (make-hash (hash-map (pattern-match types (hash) x (second pat))
-                                                                      (λ (k v) (cons k (list v)))))
-                                                 #:combine (λ (a b) (append a b))))))
-                                      (hash)
-                                      init-seg-tem))
-                   (if (equal? res 'no-match)
-                       (try (drop-right init-seg-tem 1)
-                            (cons (last init-seg-tem) end-seg-tem))
-                       (hash-union new-env res))
-                   #;(hash-set new-env (second pat) init-seg-tem)])]))
+                   (match (foldl accumulate-over-seg (hash) init-seg-tem)
+                     ['no-match (try (drop-right init-seg-tem 1)
+                                     (cons (last init-seg-tem) end-seg-tem))]
+                     [old-env (hash-union new-env old-env)])])]))
          (try arg '())]
         [(and (list? pat)
               (list? arg)
               (equal? (length pat) (length arg)))
-         #;(println "plain list case")
          (foldl (λ (arg pat env)
                   (pattern-match types env arg pat))
                 c-env arg pat)]
@@ -274,6 +265,16 @@ return no match.
                              (parse-ellipses-pattern '(1 2 3 d ... 5 f ...)))
               #hash((f . ()) (d . (4))))
 
+(check-equal? (pattern-match (hash) (hash)
+                 '(1 (1 2 3) (4 5 6))
+                 (parse-ellipses-pattern '(1 (a ...) ...)))
+              #hash((a . ((1 2 3) (4 5 6)))))
+
+(check-equal? (pattern-match (hash) (hash)
+                 '(1 (1 2 3) (1 5 6))
+                 (parse-ellipses-pattern '(1 (1 a ...) ...)))
+              #hash((a . ((2 3) (5 6)))))
+
 #|
 side note: for explaining pattern matching; the need to distiguish
 datums/literals from pattern variables: take the analogy of expanding
@@ -281,4 +282,8 @@ a fn in source code. looking for a fn call, the fn name is a literal
 and the parameters are captured as pattern variable (modulo evaluation
 strategy of course; lead into discussion of macros)
 |#
+
+
+
+
 
