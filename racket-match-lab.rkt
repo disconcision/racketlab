@@ -2,7 +2,10 @@
 
 (require rackunit)
 
-; match ellipses are greedy:
+; gonna try to reproduce racket/match ellipses matching
+; so i can use ellipses-based list patterns in my run-time matcher
+
+; recall that match ellipses are greedy:
 
 (check-equal?
  (match '(1 1 1 1 1 2 1 1 1 1 2)
@@ -29,47 +32,45 @@
  '(1 1 1 1))
 
 
+; to simply the problem i'm considering a rewriting stage:
 
+; i define a new pattern form;
+#; (pa <init-pat> <rest-pat>)
 
 #; `(,a ... 2 ,b ...)
-#; `(p-append `(,a ... 2) `(,b ...))
-#; `(p-append `(,a ... 2) b) ; where b is list
-#; `(p-append a '(2) b) ; where a, b are lists
-#; `(p-append (p-append a '(2)) b) ; where a, b are lists
+; would be equivalent to:
+#; `(pa `(,a ... 2) `(,b ...))
+#; `(pa `(,a ... 2) b) ; where b is list
+; parsing associativity options:
+#; `(pa (pa a '(2)) b) ; where a, b are lists
 ; or:
-#; `(p-append a (p-append '(2) b)) ; where a, b are lists
+#; `(pa a (pa '(2) b)) ; where a, b are lists
 ; the later suggests:
+
 #|
 bind a to list contining first element, then try to match 2nd arg (rest of pattern) to
 rest of list. if suceed, call binding of a last-success, and rest of list last-rest
 then try to bind a to list containing first two elements, etc, until the end of the list
 we're matching against. then we return the last-success binding of a, unioned with
-the bindings from applying the rest of the pattern to last-rest
+the bindings from applying the rest of the pattern to last-rest.
 
+or: start from the end, and work backwards? (this is what i end up doing)
 |#
 
 ; what do we need to forbid?
-#; (p-append a b) ; for lists a, b (what if p not a list pat?)
-#; (p-append a (p-append b whatever)) ; for lists a, b
+#; (pa a (pa b whatever))
 
+; define the following as well:
+#; (pl <init-pat> <rest-pat>) ; where pa is just p-cons
+#; (pl* <init-pats> ... <rest-pat>) ; like list*
 
-#|
-first, lets rewrite ...-containing variable-length list patterns:
-pc = pcons: operates like cons  (first elem is elem, second elem is list)
-pa = pappend: 
-|#
+; so the following are equivalent:
 #; `(A B C ,d ... E ,f ... G H) 
 #; `(pl A (pl B (pl C (pa ,d (pl E (pa ,f (pl G (H))))))))
-; list* style alernative parsing:
 #; `(pl* A B C (pa d (pl* E (pa f (pl* G H)))))
 
-; or other way?:
-#; `(p-append (p-append a '(2)) b)
-#; `(pl (pl (pa (pl (pa (pl (pl A (B)) C) ,d) E) ,f) G) H)
-#; `(*pl (pa (*pl (pa (*pl A B C) ,d) E) ,f) G H)
-; maybe should just reverse the list to start... lesser of evils?
 
-
+; here is a rewriter for the above:
 (define (parse-ellipses-pattern stx)
   (foldr
    (λ (x acc)
@@ -79,48 +80,13 @@ pa = pappend:
          `(pl ,(if (list? x) (parse-ellipses-pattern x) x) ,acc)))
    '() stx))
 
+
+; some tests
 (check-equal? (parse-ellipses-pattern '(1 2 3 d ... 5 f ... 7 8))
               '(pl 1 (pl 2 (pl 3 (pa d (pl 5 (pa f (pl 7 (pl 8 ())))))))))
-#|
-algo attempt 2:
-
-(pa new-list-pat-var rest-pat)
-so for pa pattern-case, if we want greedy behavior, lets try starting at
-the end. take the 0-tail of the template, and match it against rest-pat.
-if it works, then bind the initial segment minus the 0-tail (so whole list)
-to the new-list-pat-var. otherwise, take the 1-tail, and continue as
-such, taking the n-tail, until n-tail = whole template list, in which case
-return no match.
-
-|#
 
 
-
-; sketch 1: pm is pattern match fn
-#; (match* (pat tem)
-     [(`(pl ,pat-a ,rest-pat-b)
-       `(*cons ,tem-a ,rest-tem-b))
-      ; check if no-match
-      (hash-union (pm pat-a tem-a) (pm rest-pat-b rest-tem-b))]
-     [(`(pa ,init-seg-pat ,new-pat-var-a)
-       template)
-      (define (try init-seg-tem end-seg-tem)
-        (match init-seg-tem
-          ['() 'no-match] ;or is this okay sometimes??
-          [_ (match (pm init-seg-pat init-seg-tem)
-               ['no-match (try (drop1 init-seg-tem) (append (last init-seg-tem) end-seg))]
-               [new-env (hash-set new-env new-pat-var-a end-seg-tem)])]))
-      (try template '())])
-
-
-;given:
-#;'(pat-a pat-b pat-c ... pat-d pat-e ...)
-#;(match whatever
-    [`(,(and xs (not '...) ... '...) )])
-
-; REMEMBER still need to do pre-parser!!
-
-; lets try to integrate this in basic pm code:
+; the match algorithm
 (require racket/hash)
 (define (pattern-match types c-env arg pat)
   #;(println "pm")
@@ -133,147 +99,211 @@ return no match.
   (define (append-hashes h1 h2)
     (hash-union
      h1
+     ; must be a better way to do below:
      (make-hash (hash-map h2 (λ (k v) (cons k (list v)))))
      #:combine (λ (a b) (append a b))))
-  (define (accumulate-over-seg x acc)
+  (define (accumulate-over-seg pat x acc)
     (bind acc
           (λ (_)
-            (bind (pattern-match types (hash) x (second pat))
+            (bind (pattern-match types #hash() x pat)
                   (curry append-hashes acc)))))
   (define constructor-id?
     (curry hash-has-key? types))
   (define Pm (curry pattern-match types c-env))
-  (cond [(and (or (number? pat) (constructor-id? pat))
-              (equal? arg pat))
-         c-env]
-        [(and (not (constructor-id? pat))
-              (symbol? pat))
-         (hash-set c-env pat arg)]
-        [(and (list? pat)
-              (not (empty? pat))
-              (equal? (first pat) 'pl)
-              (list? arg)
-              (not (empty? arg)))
-         (bind (Pm (first arg) (second pat))
-               (λ (env-1)
-                 (bind (Pm (rest arg) (third pat))
-                       (curry hash-union env-1))))]
-        [(and (list? pat)
-              (not (empty? pat))
-              (equal? (first pat) 'pa)
-              (list? arg)
-              (or (not (empty? arg)) (empty? (third pat))))
-         (define (try init-seg-tem end-seg-tem)
-           (match init-seg-tem
-             ['() (bind (Pm end-seg-tem (third pat))
-                        (curryr hash-set (second pat) init-seg-tem))]
-             [_ (match (Pm end-seg-tem (third pat))
-                  ['no-match (try (drop-right init-seg-tem 1)
-                                  (cons (last init-seg-tem) end-seg-tem))]
-                  [new-env
-                   (match (foldl accumulate-over-seg (hash) init-seg-tem)
-                     ['no-match (try (drop-right init-seg-tem 1)
-                                     (cons (last init-seg-tem) end-seg-tem))]
-                     [old-env (hash-union new-env old-env)])])]))
-         (try arg '())]
-        [(and (list? pat)
-              (list? arg)
-              (equal? (length pat) (length arg)))
-         (foldl (λ (arg pat env)
-                  (pattern-match types env arg pat))
-                c-env arg pat)]
-        [else 'no-match]))
+  (match* (pat arg)
+    [((or (? number?) (? (constructor-id?)))
+      (== pat))
+     c-env]
+    [((and (? symbol?) (not (? constructor-id?)))
+      _)
+     (hash-set c-env pat arg)]
+    [(`(pl ,first-pat ,rest-pat)
+      `(,first-arg ,rest-arg ...))
+     (bind (Pm (first arg) first-pat)
+           (bind (Pm rest-arg rest-pat)
+                 (curry hash-union)))]
+    [(`(pa ,p ,ps)
+      `(,as ...))
+     (define/match (greedy arg-init arg-tail)
+       [('() _)
+        (bind (Pm arg-tail ps)
+              (bind (Pm `() p)
+                    (curry hash-union)))]
+       [(`(,as ... ,b) `(,cs ...))
+        (match (Pm cs ps)
+          ['no-match (greedy as `(,b ,@cs))]
+          [new-env
+           (match (foldl (curry accumulate-over-seg p)
+                         #hash() `(,@as ,b))
+             ['no-match (greedy as `(,b ,@cs))]
+             [old-env (hash-union new-env old-env)])])])
+     (greedy arg '())]
+    [(`(,ps ...) `(,as ...))
+     #:when (equal? (length ps) (length as))
+     (foldl (λ (arg pat env)
+              (pattern-match types env arg pat))
+            c-env arg pat)]
+    [(_ _) 'no-match]))
 
 
 
-(check-equal? (pattern-match (hash) (hash) '(1 3 4) '(pl a (3 4)))
+; TESTS
+
+(define pm-test (curry pattern-match (hash) (hash)))
+
+
+; tests for pl pattern form
+
+(check-equal? (pm-test '() '(pl () anything))
+              'no-match)
+
+(check-equal? (pm-test '(1) '(pl 1 ()))
+              #hash())
+
+(check-equal? (pm-test  '(1) '(pl a ()))
               #hash((a . 1)))
 
-(check-equal? (pattern-match (hash) (hash) '(1 3 4) '(pl 1 (3 4)))
+(check-equal? (pm-test '(1 2) '(pl 1 (2)))
               #hash())
 
-(check-equal? (pattern-match (hash) (hash) '(1 3 4) '(pl 1 (pl 3 (pl 4 ()))))
+(check-equal? (pm-test '(1 2) '(pl 1 (pl 2 ())))
+              #hash())
+
+(check-equal? (pm-test '(1 2 3) '(pl a (2 3)))
+              #hash((a . 1)))
+
+(check-equal? (pm-test '(1 2 3) '(pl 1 (pl 2 (pl 3 ()))))
               #hash())
 
 
-(check-equal? (pattern-match (hash) (hash)
-                             '(1 2)
-                             '(pa a (2)))
+; tests for pa pattern form
+
+(check-equal? (pm-test '() '(pa a ()))
+              #hash((a . ())))
+
+(check-equal? (pm-test '(1) '(pa a ()))
+              #hash((a . (1))))
+
+(check-equal? (pm-test '(1 2) '(pa a (pl 2 ())))
               #hash((a . (1))))
 
 
-(check-equal? (pattern-match (hash) (hash)
-                             '(1 2)
-                             '(pa a (pl 2 ())))
-              #hash((a . (1))))
+; pa with non-wildcard patterns
 
-(check-equal? (pattern-match (hash) (hash) '((1 1) (1 2) (4 5) 3 4) '(pa (a b) (3 4)))
+(check-equal? (pm-test
+               '((1 1) (1 2) (4 5) 3 4)
+               '(pa (a b) (3 4)))
               #hash((a . (1 1 4)) (b . (1 2 5))))
 
-(check-equal? (pattern-match (hash) (hash)
-                             '(1 2 3 4 5 6 7 8)
-                             (parse-ellipses-pattern '(1 2 3 d ...)))
-              '#hash((d . (4 5 6 7 8))))
+
+; ellipses pattern tests
 
 
-(check-equal? (pattern-match (hash) (hash)
-                             '(1 2 3 4 5)
-                             (parse-ellipses-pattern '(1 2 3 d ... 5)))
+
+; FIX THIS ISSUE!!!!!
+#;
+(check-equal? (pm-test
+               '()
+               (parse-ellipses-pattern '(1 ...)))
+              #hash())
+
+(check-equal? (pm-test
+               '(1)
+               (parse-ellipses-pattern '(2 ...)))
+              'no-match)
+
+(check-equal? (pm-test
+               '(a)
+               (parse-ellipses-pattern '(1 ...)))
+              'no-match)
+
+(check-equal? (pm-test
+               '(1)
+               (parse-ellipses-pattern '(1 ...)))
+              #hash())
+
+(check-equal? (pm-test
+               '()
+               (parse-ellipses-pattern '(f ...)))
+              #hash((f . ())))
+
+(check-equal? (pm-test
+               '(1)
+               (parse-ellipses-pattern '(f ...)))
+              #hash((f . (1))))
+
+(check-equal? (pm-test
+               '(1)
+               (parse-ellipses-pattern '(1 f ...)))
+              #hash((f . ())))
+
+(check-equal? (pm-test
+               '(1 2 3 4 5)
+               (parse-ellipses-pattern '(1 2 d ...)))
+              '#hash((d . (3 4 5))))
+
+(check-equal? (pm-test
+               '(1 2 3 4 5)
+               (parse-ellipses-pattern '(1 2 3 d ... 5)))
               '#hash((d . (4))))
 
+(check-equal? (pm-test
+               '(1 2 3 4 5)
+               (parse-ellipses-pattern '(a ... 2 b ... 5)))
+              #hash((a . (1)) (b . (3 4))))
 
-(check-equal? (pattern-match (hash) (hash)
-                             '(1 2 3 4 5 6)
-                             (parse-ellipses-pattern '(1 2 3 d ... 5 f ... 6)))
+(check-equal? (pm-test
+               '(1 2 3 4 5)
+               (parse-ellipses-pattern '(1 a ... 2 b ... 5)))
+              #hash((a . ()) (b . (3 4))))
+
+(check-equal? (pm-test
+               '(1 2 3 4 5)
+               (parse-ellipses-pattern '(1 2 3 d ... 5 f ...)))
               #hash((f . ()) (d . (4))))
 
-(check-equal? (pattern-match (hash) (hash)
-                             '(1 2 3 4 5 6 7)
-                             (parse-ellipses-pattern '(1 2 3 d ... 5 f ... 7)))
+(check-equal? (pm-test
+               '(1 2 3 4 5 6)
+               (parse-ellipses-pattern '(1 2 3 d ... 5 f ... 6)))
+              #hash((f . ()) (d . (4))))
+
+(check-equal? (pm-test
+               '(1 2 3 4 5 6 7)
+               (parse-ellipses-pattern '(1 2 3 d ... 5 f ... 7)))
               #hash((f . (6)) (d . (4))))
 
-
-(check-equal? (pattern-match (hash) (hash)
-                             '(1 2 3 4 4 5 6 6 6 7 8)
-                             (parse-ellipses-pattern '(1 2 3 d ... 5 f ... 7 8)))
+(check-equal? (pm-test
+               '(1 2 3 4 4 5 6 6 6 7 8)
+               (parse-ellipses-pattern '(1 2 3 d ... 5 f ... 7 8)))
               #hash((f . (6 6 6)) (d . (4 4))))
 
 
-(check-equal? (pattern-match (hash) (hash)
-                             '(1 2 3 4 5)
-                             (parse-ellipses-pattern '(a ... 2 b ... 5)))
-              #hash((a . (1)) (b . (3 4))))
+; complex pattern in ellipses tests
+
+(check-equal? (pm-test
+               '(1 (4 1 (6 2)) (4 3 (6 4)))
+               (parse-ellipses-pattern '(1 (4 a (6 b)) ...)))
+              #hash((a . (1 3)) (b . (2 4))))
 
 
-(check-equal? (pattern-match (hash) (hash)
-                             '(1 2 3 4 5)
-                             (parse-ellipses-pattern '(1 a ... 2 b ... 5)))
-              #hash((a . ()) (b . (3 4))))
+; nested ellipses tests
 
-(check-equal? (pattern-match (hash) (hash)
-                             '(1)
-                             '(pl f ()))
-              #hash((f . 1)))
-
-(check-equal? (pattern-match (hash) (hash)
-                             '(1)
-                             (parse-ellipses-pattern '(1 f ...)))
-              #hash((f . ())))
-
-(check-equal? (pattern-match (hash) (hash)
-                             '(1 2 3 4 5)
-                             (parse-ellipses-pattern '(1 2 3 d ... 5 f ...)))
-              #hash((f . ()) (d . (4))))
-
-(check-equal? (pattern-match (hash) (hash)
-                 '(1 (1 2 3) (4 5 6))
-                 (parse-ellipses-pattern '(1 (a ...) ...)))
+(check-equal? (pm-test
+               '(1 (1 2 3) (4 5 6))
+               (parse-ellipses-pattern '(1 (a ...) ...)))
               #hash((a . ((1 2 3) (4 5 6)))))
 
-(check-equal? (pattern-match (hash) (hash)
-                 '(1 (1 2 3) (1 5 6))
-                 (parse-ellipses-pattern '(1 (1 a ...) ...)))
+(check-equal? (pm-test
+               '(1 (1 2 3) (1 5 6))
+               (parse-ellipses-pattern '(1 (1 a ...) ...)))
               #hash((a . ((2 3) (5 6)))))
+
+(check-equal? (pm-test
+               '(1 (1 0 0 0 1 0 0) (1 0 1 0 0 0))
+               (parse-ellipses-pattern '(1 (1 a ... 1 b ...) ...)))
+              #hash((a . ((0 0 0) (0)))
+                    (b . ((0 0) (0 0 0)))))
+
 
 #|
 side note: for explaining pattern matching; the need to distiguish
@@ -282,8 +312,4 @@ a fn in source code. looking for a fn call, the fn name is a literal
 and the parameters are captured as pattern variable (modulo evaluation
 strategy of course; lead into discussion of macros)
 |#
-
-
-
-
 
