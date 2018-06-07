@@ -58,3 +58,38 @@
                     (pattern-match types env arg pat))
                   c-env arg pat)]
           [else 'no-match]))
+
+
+
+
+; NOTES
+
+
+#|
+algo attempt 2:
+
+(pa new-list-pat-var rest-pat)
+so for pa pattern-case, if we want greedy behavior, lets try starting at
+the end. take the 0-tail of the template, and match it against rest-pat.
+if it works, then bind the initial segment minus the 0-tail (so whole list)
+to the new-list-pat-var. otherwise, take the 1-tail, and continue as
+such, taking the n-tail, until n-tail = whole template list, in which case
+return no match.
+
+|#
+
+; sketch 1: pm is pattern match fn
+#; (match* (pat tem)
+     [(`(pl ,pat-a ,rest-pat-b)
+       `(*cons ,tem-a ,rest-tem-b))
+      ; check if no-match
+      (hash-union (pm pat-a tem-a) (pm rest-pat-b rest-tem-b))]
+     [(`(pa ,init-seg-pat ,new-pat-var-a)
+       template)
+      (define (try init-seg-tem end-seg-tem)
+        (match init-seg-tem
+          ['() 'no-match] ;or is this okay sometimes??
+          [_ (match (pm init-seg-pat init-seg-tem)
+               ['no-match (try (drop1 init-seg-tem) (append (last init-seg-tem) end-seg))]
+               [new-env (hash-set new-env new-pat-var-a end-seg-tem)])]))
+      (try template '())])

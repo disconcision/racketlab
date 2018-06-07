@@ -321,12 +321,10 @@ strategy of course; lead into discussion of macros)
   (define I (curry interpret types env))
   (match prog
     [(? number? n) n]
-    [(? constructor-id? id) id]
-    [`(,(? constructor-id? id) ,(and xs (not (== '→))) ...)
-     `(,id ,@(map I xs))]
+    #;[(? constructor-id? id) id]
+    #;[`(,(? constructor-id? id) ,(and xs (not (== '→))) ...)
+       `(,id ,@(map I xs))]
     [(? symbol? id) (hash-ref env id)]
-    #;[`(,pats ... → ,body) `(c: ,env ,body ,@pats)]
-    #;[`(λ ,cases ...) `(c-fall: ,env ,@cases)]
     ; here, for now we'll interpret bare lists as lists (not app)
     [(? list? xs)
      #:when (member '... xs)
