@@ -1,6 +1,7 @@
 #lang racket
 
 (require rackunit)
+(require racket/hash)
 
 ; gonna try to reproduce racket/match ellipses matching
 ; so i can use ellipses-based list patterns in my run-time matcher
@@ -74,51 +75,82 @@ or: start from the end, and work backwards? (this is what i end up doing)
 (define (parse-ellipses-pattern stx)
   (if (not (list? stx))
       stx
-      (foldr
+      (match stx
+        [`(,id ⋱ ,pat) 
+         `(,id ⋱ ,(parse-ellipses-pattern pat))] ; hack: organize parsing better!!!
+        [_ (foldr
        (λ (x acc)
          (if (and (not (empty? acc))
                   (equal? (second acc) '...))
              `(pa ,(if (list? x) (parse-ellipses-pattern x) x) ,(third acc))
              `(pl ,(if (list? x) (parse-ellipses-pattern x) x) ,acc)))
-       '() stx)))
+       '() stx)])))
 
 
 ; some tests
 (check-equal? (parse-ellipses-pattern '(1 2 3 d ... 5 f ... 7 8))
               '(pl 1 (pl 2 (pl 3 (pa d (pl 5 (pa f (pl 7 (pl 8 ())))))))))
 
-
-; the match algorithm
-(require racket/hash)
+; helpers
 (define (bind x f)
   (if (equal? 'no-match x)
       'no-match
       (f x)))
+(define (append-hashes h1 h2)
+  (hash-union
+   h1
+   ; must be a better way to do below:
+   (make-hash (hash-map h2 (λ (k v) (cons k (list v)))))
+   #:combine (λ (a b) (append a b))))
+
+
+; the match algorithm
+
 (define (pattern-match types c-env arg pat)
   #;(println "pm")
   #;(println arg)
   #;(println pat)
-  (define (append-hashes h1 h2)
-    (hash-union
-     h1
-     ; must be a better way to do below:
-     (make-hash (hash-map h2 (λ (k v) (cons k (list v)))))
-     #:combine (λ (a b) (append a b))))
-  (define (accumulate-over-seg pat x acc)
+  
+  (define (accumulate-matches pat x acc)
     (bind acc
           (λ (_)
             (bind (pattern-match types #hash() x pat)
                   (curry append-hashes acc)))))
   (define constructor-id?
     (curry hash-has-key? types))
+  (define literal?
+    (disjoin number? constructor-id?))
+  (define pattern-variable?
+    (conjoin symbol? (negate literal?)))
   (define Pm (curry pattern-match types c-env))
   (match* (pat arg)
-    [((or (? number?) (? (constructor-id?)))
+    [((? literal?)
       (== pat))
      c-env]
-    [((and (? symbol?) (not (? constructor-id?)))
+    [((? pattern-variable?)
       _)
      (hash-set c-env pat arg)]
+    [(`(,cntx-name ⋱ ,(app (curry Pm arg) (? hash? new-env)))
+      _)
+     (hash-union new-env (hash-set c-env cntx-name identity))]
+    [(`(,cntx-name ⋱ ,find-pat)
+      `(,xs ...))
+
+     ; decompose arg list
+     (define-values (init term)
+       (splitf-at xs
+                  (λ (x)
+                    (not (hash? (Pm x `(,cntx-name ⋱ ,find-pat)))))))
+
+     (match init
+       [(== xs) 'no-match]
+       [_ (define new-env (Pm (first term) `(,cntx-name ⋱ ,find-pat)))
+          (define sub-fn (hash-ref new-env cntx-name))
+          (hash-set new-env cntx-name
+                    (compose (λ (x) `(,@init ,x ,@(rest term)))
+                             sub-fn))])
+
+     ]
     [(`(pl ,first-pat ,rest-pat)
       `(,first-arg ,rest-arg ...))
      (bind (Pm (first arg) first-pat)
@@ -135,7 +167,7 @@ or: start from the end, and work backwards? (this is what i end up doing)
         (match (Pm cs ps)
           ['no-match (greedy as `(,b ,@cs))]
           [new-env
-           (match (foldl (curry accumulate-over-seg p)
+           (match (foldl (curry accumulate-matches p)
                          #hash() `(,@as ,b))
              ['no-match (greedy as `(,b ,@cs))]
              [old-env (hash-union new-env old-env)])])])
@@ -325,7 +357,10 @@ strategy of course; lead into discussion of macros)
     #;[`(,(? constructor-id? id) ,(and xs (not (== '→))) ...)
        `(,id ,@(map I xs))]
     [(? symbol? id) (hash-ref env id)]
-    ; here, for now we'll interpret bare lists as lists (not app)
+    ; right now, ⋱ in templates is alias for (racket) application
+    [`(,(? symbol? id) ⋱ ,arg)
+     ((hash-ref env id) arg)]
+    ; for now we interpret (other) bare lists as lists (not app)
     [(? list? xs)
      #:when (member '... xs)
      (I (parse-ellipses-pattern xs))] ; hacky
@@ -365,8 +400,94 @@ strategy of course; lead into discussion of macros)
   (runtime-match #hash() '(clauses ...) source))
 
 (check-equal? (ratch '(let ([a 1] [b 2]) 0)
-                [(form ([id init] ...) body)
-                 (id ... init ...)])
+                     [(form ([id init] ...) body)
+                      (id ... init ...)])
               (match '(let ([a 1] [b 2]) 0)
                 [`(,form ([,id ,init] ...) ,body)
                  `(,@id ,@init)]))
+
+
+
+; containment pattern implementation attempt 1:
+(define contain-test (curry pattern-match (hash) (hash)))
+
+
+(check-equal? ((hash-ref (contain-test
+                          '(1)
+                          '(a ⋱ 1))
+                         'a)
+               1)
+              '(1))
+
+(check-equal? ((hash-ref (contain-test
+                          '(1 0)
+                          '(a ⋱ 1))
+                         'a)
+               1)
+              '(1 0))
+
+(check-equal? ((hash-ref (contain-test
+                          '(0 1)
+                          '(a ⋱ 1))
+                         'a)
+               1)
+              '(0 1))
+
+(check-equal? ((hash-ref (contain-test
+                          '(0 1 0)
+                          '(a ⋱ 1))
+                         'a)
+               1)
+              '(0 1 0))
+
+(check-equal? ((hash-ref (contain-test
+                          '(0 (0 1) 0)
+                          '(a ⋱ 1))
+                         'a)
+               1)
+              '(0 (0 1) 0))
+
+; should this be valid? or should containment patterns only match lists??
+(check-equal? ((hash-ref (contain-test
+                          1
+                          '(a ⋱ 1))
+                         'a)
+               2)
+              2)
+
+(check-equal? (hash-ref (contain-test
+                         1
+                         '(a ⋱ b))
+                        'b)
+              1)
+
+(check-equal? ((hash-ref (contain-test
+                          '(0 2)
+                          '(a ⋱ (0 b)))
+                         'a)
+               '(0 3))
+              '(0 3))
+
+(check-equal? ((hash-ref (contain-test
+                          '(0 (0 2) 0)
+                          '(a ⋱ (0 b)))
+                         'a)
+               '(0 3))
+              '(0 (0 3) 0))
+
+
+
+(check-equal? (runtime-match #hash() '(((a ⋱ 1) (a ⋱ 2))) '(1))
+              '(2))
+
+(check-equal? (runtime-match #hash() '(((a ⋱ 1) (a ⋱ 2))) '(0 1))
+              '(0 2))
+
+(check-equal? (runtime-match #hash() '(((a ⋱ 1) (a ⋱ 2))) '(0 (0 0 1) 0))
+              '(0 (0 0 2) 0))
+
+; below doesn't work because i'm not handling ellipses pre-parsing
+; in a disciplined fashion
+#;
+(check-equal? (runtime-match #hash() '(((a ⋱ (0 b)) b)) '(0 (0 2) 0))
+              '(0 (0 0 2) 0))
