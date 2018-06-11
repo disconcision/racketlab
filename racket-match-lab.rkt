@@ -160,54 +160,50 @@ or: start from the end, and work backwards? (this is what i end up doing)
   #;(println "pm")
   #;(println arg)
   #;(println pat)
-  
   (define (accumulate-matches pat x acc)
     (bind acc
-          (λ (_)
-            (bind (destructure types #hash() x pat)
-                  (curry append-hashes acc)))))
+          (λ (_) (bind (destructure types #hash() x pat)
+                       (curry append-hashes acc)))))
   (define constructor-id?
     (curry hash-has-key? types))
   (define literal?
-    (disjoin number? constructor-id?))
+    (disjoin number? constructor-id? empty?))
+  ; note the empty set case
   (define pattern-variable?
     (conjoin symbol? (negate literal?)))
   (define D (curry destructure types c-env))
   (match* (pat arg)
-    [((? literal?)
-      (== pat))
+    [((? literal?) (== pat))
      c-env]
-    [((? pattern-variable?)
-      _)
+    [((? pattern-variable?) _)
      (hash-set c-env pat arg)] 
     [(`(p⋱ ,cntx-name ,(app (curry D arg) (? hash? new-env)))
-      _)
+      _) ; should this be (? list?) ?
      (hash-union new-env (hash-set c-env cntx-name identity))]
     [(`(p⋱ ,cntx-name ,find-pat)
       `(,xs ...))
-
-     ; decompose arg list
-     (define-values (init term)
+     ; split arg list at first match
+     (define-values (initial-segment terminal-segment)
        (splitf-at xs
                   (λ (x)
                     (not (hash? (D x `(p⋱ ,cntx-name ,find-pat)))))))
-
-     (match init
-       [(== xs) 'no-match]
-       [_ (define new-env (D (first term) `(p⋱ ,cntx-name ,find-pat)))
-          (define sub-fn (hash-ref new-env cntx-name))
-          (hash-set new-env cntx-name
-                    (compose (λ (x) `(,@init ,x ,@(rest term)))
-                             sub-fn))])
-
-     ]
+     ; draw the rest of the owl
+     (match* (initial-segment terminal-segment)
+       [((== xs) _) 'no-match]
+       [(`(,is ...) `(,hit ,ts ...))
+        (define new-env (D hit `(p⋱ ,cntx-name ,find-pat)))
+        (hash-set new-env cntx-name
+                  (compose (λ (x) `(,@is ,x ,@ts))
+                           (hash-ref new-env cntx-name)))])]
+    
     [(`(pcons ,first-pat ,rest-pat)
       `(,first-arg ,rest-arg ...))
      (bind (D (first arg) first-pat)
            (λ (h) (bind (D rest-arg rest-pat)
                         (curry hash-union h))))]
+    
     [(`(p... ,p ,ps)
-      `(,as ...))
+      (? list?))
      (define/match (greedy arg-init arg-tail)
        [('() _)
         (bind (D arg-tail ps)
@@ -222,11 +218,6 @@ or: start from the end, and work backwards? (this is what i end up doing)
              ['no-match (greedy as `(,b ,@cs))]
              [old-env (hash-union new-env old-env)])])])
      (greedy arg '())]
-    [(`(,ps ...) `(,as ...))
-     #:when (equal? (length ps) (length as))
-     (foldl (λ (arg pat env)
-              (destructure types env arg pat))
-            c-env arg pat)]
     [(_ _) 'no-match]))
 
 
@@ -398,19 +389,22 @@ strategy of course; lead into discussion of macros)
 |#
 
 (define (restructure types env stx)
+  (define R (curry restructure types env))
   (define (constructor-id? id)
     (hash-has-key? types id))
-  (define I (curry restructure types env))
+  (define literal?
+    (disjoin number? constructor-id? empty?))
+  (define variable?
+    (conjoin symbol? (negate literal?)))
   (match stx
-    ['() '()]
-    [(? number? n) n]
-    [(? symbol? id) (hash-ref env id)]
-    [`(p⋱ ,(? symbol? id) ,arg)
-     ((hash-ref env id) (I arg))]
+    [(? literal? d) d]
+    [(? variable? id) (hash-ref env id)]
     [`(pcons ,p ,ps)
-     (cons (I p) (I ps))]
+     (cons (R p) (R ps))]
     [`(p... ,p ,ps)
-     (append (I p) (I ps))]))
+     (append (R p) (R ps))]
+    [`(p⋱ ,(? symbol? id) ,arg)
+     ((hash-ref env id) (R arg))]))
 
 
 (define (runtime-match types pat-tems source)
@@ -444,8 +438,8 @@ strategy of course; lead into discussion of macros)
   (runtime-match #hash() '(clauses ...) source))
 
 (check-equal? (ratch '(let ([a 1] [b 2]) 0)
-                     [(form ([id init] ...) body)
-                      (id ... init ...)])
+                [(form ([id init] ...) body)
+                 (id ... init ...)])
               (match '(let ([a 1] [b 2]) 0)
                 [`(,form ([,id ,init] ...) ,body)
                  `(,@id ,@init)]))
