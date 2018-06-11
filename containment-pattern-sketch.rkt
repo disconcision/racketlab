@@ -1,6 +1,26 @@
 #lang racket
 
 
+
+; from reddit suggestion by soegaard:
+; https://www.reddit.com/r/Racket/comments/8q3h4r/
+
+(define-namespace-anchor here)
+(define ns (namespace-anchor->namespace here))
+
+(define (fn xs)
+  (define (one? x) (= x 1))
+  (define syms (for/list ([i (length xs)]) (string->symbol (~a "x" i))))
+  (define args (for/list ([sym syms] [x xs] #:when (one? x)) sym))
+  (define body `(list . ,(for/list ([sym syms] [x xs]) (if (one? x) sym 0))))  
+  (eval `(lambda ,args ,body) ns))
+
+(require rackunit)
+(check-equal? ((fn '(0 0 1 0 1)) 3 4)
+              '(0 0 3 0 4))
+
+
+
 ; containment patterns
 
 ; (⋱ <pat>)
