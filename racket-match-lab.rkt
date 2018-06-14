@@ -419,7 +419,8 @@ strategy of course; lead into discussion of macros)
 
 
 (define (runtime-match types pat-tems source)
-  (match pat-tems
+  (define new-pat-tems (map runtime-match-rewriter pat-tems))
+  (match new-pat-tems
     [`() 'no-match]
     [`((,(app desugar-pattern pattern)
         ,(app desugar-template template))
@@ -428,6 +429,14 @@ strategy of course; lead into discussion of macros)
      (if (equal? 'no-match env)
          (runtime-match types other-clauses source)
          (restructure types env template))]))
+
+
+(define (runtime-match-rewriter pat-tem)
+  (match pat-tem
+    [(or `(,a ⋱→ ,b) `(⋱→ ,a ,b))
+     (let ([ctx (gensym)])
+       `((,ctx ⋱ ,a) (,ctx ⋱ ,b)))]
+    [_ pat-tem]))
 
 (check-equal? (runtime-match #hash() '((a 2)) '1)
               2)

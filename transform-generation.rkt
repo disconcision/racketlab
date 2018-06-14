@@ -57,6 +57,15 @@
 ; with first-class patterns as keys
 ; into a fallthrough-matcher... but order...
 
+;fn takes
+;input = sort of syntax at cursor
+;output = possible transformations to fill it
+; ⊙ is (hole <type>)
+#; ((⊙ pat)
+    (list (⊙ pat) → (pvar (⊙ id))
+          (⊙ pat) → (dat (⊙ d))
+          (⊙ pat) → ((⊙ pat) ⊙...)))
+
 ; idea: flip a switch to change which is implied, list or app
 
 ; top ◇
@@ -73,16 +82,8 @@
 ; start state
 #; (◇ (▹ (⊙ expr)))
 
-#;(define-syntax-rule (ratch whatever
-                        x ...
-                        (y ⋱→ z)
-                        w ...)
-    (ratch whatever
-      x ...
-      ((a ⋱ y) (a ⋱ z))
-      w ...))
 
-
+; list of literals (generate from grammar)
 (define literals
   #hash((dat . ())
         (void . ())
@@ -92,42 +93,56 @@
         (▹ . ())
         (⊙ . ())
         (expr . ())))
-(let loop
-  ([stx '(◇ (▹ (⊙ expr)))])
+
+; map from keys to functions
+(define keymap
+  '([0 ([⋱→
+         (▹ (⊙ expr))
+         (pair (▹ (⊙ expr)) (⊙ expr))])]
+    [u ([(◇ a ... (▹ b) c ...)
+         (◇ a ... (▹ b) c ...)]
+        ; add runtime-match macro for guards like this
+        [⋱→
+         (a ... (▹ b) c ...)
+         (▹ (a ... b c ...))])]
+    [d ([⋱→
+         (▹ (⊙ _))
+         (▹ (⊙ _))]
+        [⋱→
+         (▹ (pair a b))
+         (pair (▹ a) b)])]
+    [l ([⋱→
+         (pair (▹ c) d ...)
+         (pair (▹ c) d ...)]
+        [⋱→
+         (a ... b (▹ c) d ...)
+         (a ... (▹ b) c d ...)])]
+    [r ([⋱→
+         (a ... (▹ b) c d ...)
+         (a ... b (▹ c) d ...)])]
+    [x ([⋱→
+         (▹ (pair a b))
+         (▹  (⊙ expr))])]))
+
+(let loop ([stx '(◇ (▹ (⊙ expr)))])
   (displayln stx)
+  (define (get-maybe-transform)
+    (assoc (read) keymap))
+  (define key (get-maybe-transform))
   (define transform
-    (match (read)
-      ['0 '([(ctx ⋱ (▹ (⊙ expr)))
-             (ctx ⋱ (pair (▹ (⊙ expr)) (⊙ expr)))])]
-      ['u '([(◇ a ... (▹ b) c ...)
-             (◇ a ... (▹ b) c ...)]  ; add runtime-match macro for guards like this
-            [(ctx ⋱ (a ... (▹ b) c ...))
-             (ctx ⋱ (▹ (a ... b c ...)))])]
-      ['d '([(ctx ⋱ (▹ (⊙ _)))
-             (ctx ⋱ (▹ (⊙ _)))]
-            [(ctx ⋱ (▹ (pair a b)))
-             (ctx ⋱ (pair (▹ a) b))])]
-      ['l '([(ctx ⋱ (pair (▹ c) d ...))
-             (ctx ⋱ (pair (▹ c) d ...))]
-            [(ctx ⋱ (a ... b (▹ c) d ...))
-             (ctx ⋱ (a ... (▹ b) c d ...))])]
-      ['r '([(ctx ⋱ (a ... (▹ b) c d ...))
-             (ctx ⋱ (a ... b (▹ c) d ...))])]
-      ['x '([(ctx ⋱ (▹ (pair a b)))
-             (ctx ⋱ (▹  (⊙ expr)))])]
-      [_ (displayln "that's not a thing")
-         '([_ _])]))
+    (if key (second key) '([a a])))
   (loop (match (runtime-match literals transform stx)
           ['no-match stx]
           [res res])))
 
-;fn takes
-;input = sort of syntax at cursor
-;output = possible transformations to fill it
-; ⊙ is (hole <type>)
-#; ((⊙ pat)
-    (list (⊙ pat) → (pvar (⊙ id))
-          (⊙ pat) → (dat (⊙ d))
-          (⊙ pat) → ((⊙ pat) ⊙...)))
+; perform a sequence of actions, for testing purposes:
+(define (do-seq stx . actions)
+  (match actions
+    ['() stx]
+    [`(,x ,xs ...) (do-seq
+                    0000)]))
+
+
+
 
 
