@@ -3,6 +3,17 @@
 (require rackunit)
 (require racket/hash)
 
+(provide runtime-match destructure restructure)
+(provide ratch)
+
+#;#;
+(define env (destructure types #hash() source pattern))
+     (if (equal? 'no-match env)
+         (runtime-match types other-clauses source)
+         (restructure types env template))
+
+
+
 ; gonna try to reproduce racket/match ellipses matching
 ; so i can use ellipses-based list patterns in my run-time matcher
 
@@ -434,10 +445,10 @@ strategy of course; lead into discussion of macros)
 (check-equal? (runtime-match #hash() '(((a b ...) (b ... (a)))) '(1))
               '((1)))
 
-(define-syntax-rule (ratch source clauses ...)
-  (runtime-match #hash() '(clauses ...) source))
+(define-syntax-rule (ratch literals source clauses ...)
+  (runtime-match literals '(clauses ...) source))
 
-(check-equal? (ratch '(let ([a 1] [b 2]) 0)
+(check-equal? (ratch #hash() '(let ([a 1] [b 2]) 0)
                 [(form ([id init] ...) body)
                  (id ... init ...)])
               (match '(let ([a 1] [b 2]) 0)
