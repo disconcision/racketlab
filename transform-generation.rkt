@@ -34,8 +34,8 @@
 
 ; simpler grammar
 #;(grammar
-   (d (terminal (curry equal? 'void)))
-   (expr (box d)
+   (s (terminal (curry equal? 'expr)))
+   (expr (⊙ s)
          (pair expr expr)))
 
 #;(define sorts
@@ -95,49 +95,31 @@
 (let loop
   ([stx '(◇ (▹ (⊙ expr)))])
   (displayln stx)
-  (define new-stx
+  (define transform
     (match (read)
-      ['0 (ratch literals stx
-            [(ctx ⋱ (▹ (⊙ expr)))
+      ['0 '([(ctx ⋱ (▹ (⊙ expr)))
              (ctx ⋱ (pair (▹ (⊙ expr)) (⊙ expr)))])]
-      ['u (ratch literals stx
-            [(◇ a ... (▹ b) c ...)
-             (◇ a ... (▹ b) c ...)]
+      ['u '([(◇ a ... (▹ b) c ...)
+             (◇ a ... (▹ b) c ...)]  ; add runtime-match macro for guards like this
             [(ctx ⋱ (a ... (▹ b) c ...))
-             (ctx ⋱ (▹ (a ... b c ...)))]
-            )]
-      ['x (ratch literals stx
-            [(ctx ⋱ (▹ _))
-             (ctx ⋱ (▹ (⊙ expr)))])]
+             (ctx ⋱ (▹ (a ... b c ...)))])]
+      ['d '([(ctx ⋱ (▹ (⊙ _)))
+             (ctx ⋱ (▹ (⊙ _)))]
+            [(ctx ⋱ (▹ (pair a b)))
+             (ctx ⋱ (pair (▹ a) b))])]
+      ['l '([(ctx ⋱ (pair (▹ c) d ...))
+             (ctx ⋱ (pair (▹ c) d ...))]
+            [(ctx ⋱ (a ... b (▹ c) d ...))
+             (ctx ⋱ (a ... (▹ b) c d ...))])]
+      ['r '([(ctx ⋱ (a ... (▹ b) c d ...))
+             (ctx ⋱ (a ... b (▹ c) d ...))])]
+      ['x '([(ctx ⋱ (▹ (pair a b)))
+             (ctx ⋱ (▹  (⊙ expr)))])]
       [_ (displayln "that's not a thing")
-         stx]
-      #;#;#;
-      ['0 (match stx
-            [(▹ (⊙ expr)) ⋱→ (▹ (dat void))])]
-      ['1 (match stx
-            [(▹ (⊙ expr)) ⋱→ (box (▹ (⊙ expr)))])]
-      ['2 (match stx
-            [(▹ (⊙ expr)) ⋱→ (pair (▹ (⊙ expr)) (⊙ expr))])]
-      #;#;#;#;#;
-      ['x (match stx
-            [(▹ (dat void)) ⋱→ (▹ (⊙ expr))]
-            [(▹ (box _)) ⋱→ (▹ (⊙ expr))]
-            [(box (▹ (⊙ expr))) ⋱→ (▹ (⊙ expr))])]
-      ['u (match stx
-            [(a ... (▹ b) c ...) ⋱↦ (▹ (a ... b c ...))]
-            [_ stx])]
-      ['d (match stx
-            [(▹ (a b ...)) ⋱↦ ((▹ a) b ...)]
-            [_ stx])]
-      ['l (match stx
-            [(a ... b (▹ c) d ...) ⋱↦ (a ... (▹ b) c d ...)]
-            [_ stx])]
-      ['r (match stx
-            [(a ... b (▹ c) d ...) ⋱↦ (a ... (▹ b) c d ...)]
-            [_ stx])]))
-  (loop (if (equal? new-stx 'no-match)
-            stx
-            new-stx)))
+         '([_ _])]))
+  (loop (match (runtime-match literals transform stx)
+          ['no-match stx]
+          [res res])))
 
 ;fn takes
 ;input = sort of syntax at cursor
