@@ -14,8 +14,8 @@
 ; autocomplete
 
 (ratch #hash() '(1 2 3)
-  ((a b c)
-   (c b a)))
+       ((a b c)
+        (c b a)))
 
 ; a grammar
 
@@ -80,8 +80,16 @@
 ; another alternative: when ⊙... selected, ENTER expands it hole + ⊙...
 
 ; start state
-#; (◇ (▹ (⊙ expr)))
+(define initial-state
+  #hash((stx . (◇ (▹ (⊙ expr))))
+        (transforms . ())
+        (messages . ("hello"))))
 
+
+#;(grammar
+   (s (terminal (curry equal? 'expr)))
+   (expr (⊙ s)
+         (pair expr expr)))
 
 ; list of literals (generate from grammar)
 (define literals
@@ -124,23 +132,65 @@
          (▹ (pair a b))
          (▹  (⊙ expr))])]))
 
-(let loop ([stx '(◇ (▹ (⊙ expr)))])
-  (displayln stx)
-  (define (get-maybe-transform)
-    (assoc (read) keymap))
-  (define key (get-maybe-transform))
-  (define transform
-    (if key (second key) '([a a])))
-  (loop (match (runtime-match literals transform stx)
-          ['no-match stx]
-          [res res])))
 
-; perform a sequence of actions, for testing purposes:
-(define (do-seq stx . actions)
-  (match actions
-    ['() stx]
-    [`(,x ,xs ...) (do-seq
-                    0000)]))
+(define (get-transform key)
+  (let ([res (assoc key keymap)])
+    (if res (second res) '([a a]))))
+
+; perform a sequence of actions
+(define (do-seq stx actions)
+  (for/fold ([s stx])
+            ([a actions])
+    (runtime-match literals a s)))
+
+; game loop
+(let loop ([state initial-state])
+  (match state
+    [(hash-table ('stx stx)
+                 ('transforms transforms)
+                 ('messages messages))
+     ; output phase
+     (pretty-print stx)  
+     (pretty-print (first messages))
+     ; input phase
+     (define key (read))
+     ; update state
+     (define new-state
+       (match key
+         ; meta keys
+         ['h (hash-set*
+              state
+              'messages (cons transforms messages))]
+         ['z (match transforms
+               ['() (hash-set*
+                     state
+                     'messages (cons "no undo states" messages)
+                     )]
+               [_ (hash-set*
+                   state
+                   'messages (cons "reverting to previous state" messages)
+                   'stx (do-seq (hash-ref initial-state 'stx)
+                                (rest transforms))
+                   'transforms (rest transforms))])]
+         ; transform keys
+         [_ (define transform (get-transform key))
+            (match (runtime-match literals transform stx)
+              ['no-match state]
+              [new-stx (hash-set*
+                        state
+                        'stx new-stx
+                        'transforms (cons transform transforms)
+                        'messages (cons "performed action" messages)
+                        )])]))
+     (loop new-state)]))
+
+; todo: refactor messages
+; add a history of messages to hash
+; meta actions can generate new messages
+; if a message has been added (compare against old)
+; then print the new message
+; (so that all message display is done at a single site)
+
 
 
 
