@@ -10,7 +10,8 @@
 ; (id ⋱ <pat>)
 
 
-#| simple (one-hold context) containment patterns |#
+
+#| simple (one-hole context) containment patterns |#
 
 ; version (⋱ pat) read as "contains pat"
 #; (check-equal? (tester `(⋱ 1)
@@ -165,4 +166,12 @@
 (check-equal? ((fn '(0 0 1 0 1)) 3 4)
               '(0 0 3 0 4))
 
+
+#| remember these more exotic ideas (taken from fructerm-old.rkt)
+
+ containment-tree (contrast containment-single, containment-list)
+ locality anchor: for nested containment patterns,
+   make inner containment most-local to anchor symbol.
+   use case: select lowest common parent
+|#
 

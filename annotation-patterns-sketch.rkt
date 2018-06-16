@@ -5,6 +5,13 @@
  a consolidation of notes/sketches on
  syntax annotation and hash patterns
 
+ attributes:
+   annotations, aspects, and affordances
+
+ remember to think about this in the context of
+ attribute grammars. need more conceptual clarity
+ of intrisic versus derived attributes.
+
 |#
 
 
