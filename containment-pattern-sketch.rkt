@@ -1,27 +1,8 @@
 #lang racket
 
 
-
-; from reddit suggestion by soegaard:
-; https://www.reddit.com/r/Racket/comments/8q3h4r/
-
-(define-namespace-anchor here)
-(define ns (namespace-anchor->namespace here))
-
-(define (fn xs)
-  (define (one? x) (= x 1))
-  (define syms (for/list ([i (length xs)]) (string->symbol (~a "x" i))))
-  (define args (for/list ([sym syms] [x xs] #:when (one? x)) sym))
-  (define body `(list . ,(for/list ([sym syms] [x xs]) (if (one? x) sym 0))))  
-  (eval `(lambda ,args ,body) ns))
-
-(require rackunit)
-(check-equal? ((fn '(0 0 1 0 1)) 3 4)
-              '(0 0 3 0 4))
-
-
-
-; containment patterns
+#| 2018.06
+   notes on containments patterns |#
 
 ; (⋱ <pat>)
 ; (⋱list <pat> ...)
@@ -29,11 +10,12 @@
 ; (id ⋱ <pat>)
 
 
+#| simple (one-hold context) containment patterns |#
+
 ; version (⋱ pat) read as "contains pat"
 #; (check-equal? (tester `(⋱ 1)
                          `(0 1 2 3))
                  #hash())
-
 
 ; by default ⋱ is recursive
 #; (check-equal? (tester `(⋱ 1)
@@ -115,6 +97,9 @@
                               idz))
 
 
+#| complex containmeent patterns
+   (multi-holed contexts) |#
+
 ; multi-result ⋱list
 #; (check-equal? (tester `(a ⋱ 1)
                          `(0 1 2 1))
@@ -162,18 +147,22 @@
 ; ...
 
 
-; side note: hash pattern syntax?
-#; (h : rest-sexpr ...) ; bind h to hash
-#; (h tag ... : rest-sexpr ...) ; where tag means check (has-has-key tag)
-; e.g.
-#; (h expr? : if true 0 1)
-#; (h (or tag (prop . <pat>)) ... : rest-sexpr ...)
-; (destructure (hash-ref h prop) <pat>)
-; e.g.
-#; (h (type . N) : if true b c)
-; binding hash is optional? (actually this makes the syntax ambiguous...)
-; find some way to make it work:
-#; (tag tag tag : rest ...)
-#; ((prop . value) : rest ...)
-; in template:
-#; (h (prop : (make-new-val value)))
+
+; from reddit suggestion by soegaard:
+; https://www.reddit.com/r/Racket/comments/8q3h4r/
+
+(define-namespace-anchor here)
+(define ns (namespace-anchor->namespace here))
+
+(define (fn xs)
+  (define (one? x) (= x 1))
+  (define syms (for/list ([i (length xs)]) (string->symbol (~a "x" i))))
+  (define args (for/list ([sym syms] [x xs] #:when (one? x)) sym))
+  (define body `(list . ,(for/list ([sym syms] [x xs]) (if (one? x) sym 0))))  
+  (eval `(lambda ,args ,body) ns))
+
+(require rackunit)
+(check-equal? ((fn '(0 0 1 0 1)) 3 4)
+              '(0 0 3 0 4))
+
+
