@@ -156,6 +156,8 @@
          ['h (hash-set*
               state
               'messages (cons transforms messages))]
+         ; BUG for UNDO: do 0 0 0 u x u z
+         ; results in 'no-match
          ['z (match transforms
                ['() (hash-set*
                      state
@@ -179,14 +181,13 @@
                         )])]))
      (loop new-state)]))
 
+
 ; todo: refactor messages
 ; add a history of messages to hash
 ; meta actions can generate new messages
 ; if a message has been added (compare against old)
 ; then print the new message
 ; (so that all message display is done at a single site)
-
-
 
 
 
