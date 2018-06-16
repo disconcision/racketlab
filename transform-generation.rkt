@@ -2,20 +2,22 @@
 
 (require "../projects/fructerm/fructerm.rkt")
 
+#| 2018.06.14
 
-; just make a simple tranformation generation system
-; for a fixed simple lang ie lc or plastic;
+ just make a simple tranformation generation system
+ for a fixed simple lang ie lc or plastic;
 
-; try to use my runtime pattern matching?
+ try to use my runtime pattern matching?
 
-; then gereralize to generating basic creators/destructors from grammar
+ then gereralize to generating basic creators/destructors from grammar
 
-; think about but dont prioritize:
-; autocomplete
+ think about but dont prioritize:
+ - autocomplete
 
-(ratch #hash() '(1 2 3)
-       ((a b c)
-        (c b a)))
+
+|#
+
+
 
 ; a grammar
 
@@ -32,7 +34,9 @@
            (dat d)
            (pat ...)))
 
-; simpler grammar
+
+; a simpler grammar
+
 #;(grammar
    (s (terminal (curry equal? 'expr)))
    (expr (⊙ s)
@@ -41,6 +45,7 @@
 #;(define sorts
     #hash((expr . ((dat d)
                    (app expr expr)))))
+
 #;(define constructors
     #hash((dat . (→ expr))
           (app . (expr expr → expr))))
@@ -49,17 +54,7 @@
 ; this makes is just the inverse hash from sorts
 ; provided names are interpreted appropriately
 
-#;(define (parse-grammar grammar)
-    (λ (x)
-      (runtime-match x)))
 
-; ? write something to turn a hash
-; with first-class patterns as keys
-; into a fallthrough-matcher... but order...
-
-;fn takes
-;input = sort of syntax at cursor
-;output = possible transformations to fill it
 ; ⊙ is (hole <type>)
 #; ((⊙ pat)
     (list (⊙ pat) → (pvar (⊙ id))
