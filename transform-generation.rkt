@@ -1,6 +1,6 @@
 #lang racket
 
-(require "racket-match-lab.rkt")
+(require "../projects/fructerm/fructerm.rkt")
 
 
 ; just make a simple tranformation generation system
