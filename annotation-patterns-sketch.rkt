@@ -15,6 +15,45 @@
 |#
 
 
+
+#| 2018.06.22
+   idea: some degree of snaffo/property duality
+   (<props> ... // <pat>) matches syntax
+   matching <pat> with properties <props> |#
+
+#| the below represent pattern-templates for moving
+   a selector between selectable elements|#
+
+'((// (>> as)) ...
+  (// (> b))
+  (// (>> c))
+  (// (>> d)) ...)
+'((// (>> as)) ...
+  (// (>> b))
+  (// (> >> c)) ; as opposed to nesting (>> (> c))
+  (// (>> d)) ...)
+
+'((selectable? // as) ...
+  (// (> b))
+  (selectable? // c)
+  (selectable? // ds) ...)
+'((selectable? // as) ...
+  (selectable? // b)
+  (// (> c))
+  (selectable? // ds) ...)
+
+'((selectable? // as) ...
+  (selected? // b)
+  (selectable? // c)
+  (selectable? // ds) ...)
+'((selectable? // as) ...
+  (selectable? // b)
+  (selected? // c)
+  (selectable? // ds) ...)
+
+
+
+
 #| NOTES FROM containment-pattern-sketch.rkt |#
 
 ; side note: hash pattern syntax?
