@@ -39,7 +39,7 @@
   (selectable? // ds) ...)
 '((selectable? // as) ...
   (selectable? // b)
-  (// (> c))
+  (selectable? // (> c))
   (selectable? // ds) ...)
 
 '((selectable? // as) ...
@@ -48,10 +48,18 @@
   (selectable? // ds) ...)
 '((selectable? // as) ...
   (selectable? // b)
-  (selected? // c)
+  (selectable? selected? // c)
   (selectable? // ds) ...)
 
-
+; question: do we need selectable? for the selected? above?
+; it depends on our semantics
+; we could treat the hash-properties as properties of 'the hole'
+; left by the syntax matched to the pat.
+; in this view, that hole would retain all previous hash-props
+; and we could consider syntax-props written in the template
+; as overwriting those of the hole
+; this doesn't work though if we want to drag along properties
+; say as a transform which swaps two pieces of syntax
 
 
 #| NOTES FROM containment-pattern-sketch.rkt |#
