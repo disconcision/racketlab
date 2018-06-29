@@ -2,6 +2,9 @@
 (require 2htdp/image)
 (require rackunit)
 
+
+(provide render)
+
 (define a "ssssssss ssssssssssssss")
 (define char-height 24)
 (define char-width (/ char-height 2))

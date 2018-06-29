@@ -80,6 +80,10 @@
         (transforms . ())
         (messages . ("hello"))))
 
+(define anno-initial-state
+    #hash((stx . (p/ () (◇ (p/ ▹ (p/ () (⊙ expr))))))
+          (transforms . ())
+          (messages . ("hello"))))
 
 #;(grammar
    (s (terminal (curry equal? 'expr)))
@@ -127,16 +131,125 @@
            (▹ (pair a b))
            (▹  (⊙ expr))])]))
 
+#; ( 
+    [(? number?)
+     (render-datum stx)]
+    [(? symbol?)
+     (render-identifier stx)]
+    [`(app ,f ,as ...)
+     (render-call stx)]
+    [`(λ ,p ,xs ...)
+     (render-λ stx)]
+    [`(let ,c ,xs ...)
+     (render-let stx)])
+
+
+(define literals2
+  #hash((app . ())
+        (λ . ())
+        (let . ())
+        (pair . ())
+        (◇ . ())
+        (▹ . ())
+        (⊙ . ())
+        (expr . ())))
+
+(define keymap2
+  '(["1" ([⋱→
+           (▹ (⊙ expr))
+           (▹ 0)])]
+    ["2" ([⋱→
+           (▹ (⊙ expr))
+           (app (▹ (⊙ expr)) (⊙ expr))])]
+    ["3" ([⋱→
+           (▹ (⊙ expr))
+           (λ ((▹ (⊙ expr))) (⊙ expr))])]
+    ["4" ([⋱→
+           (▹ (⊙ expr))
+           (let ([(▹ (⊙ expr)) (⊙ expr)]) (⊙ expr))])]
+    ["up" ([(◇ a ... (▹ b) c ...)
+            (◇ a ... (▹ b) c ...)]
+           ; add runtime-match macro for guards like this
+           [⋱→
+            (λ ((▹ a)) b)
+            (▹ (λ (a) b))]
+           [⋱→
+            (let ([(▹ a) b]) c)
+            (▹ (let ([a b]) c))]
+           [⋱→
+            (let ([a (▹ b)]) c)
+            (▹ (let ([a b]) c))]
+           [⋱→
+            (a ... (▹ b) c ...)
+            (▹ (a ... b c ...))])]
+    ["down" ([⋱→
+              (▹ (⊙ _))
+              (▹ (⊙ _))]
+             [⋱→
+              (▹ 0)
+              (▹ 0)]
+             [⋱→
+              (▹ (app a b))
+              (app (▹ a) b)]
+             [⋱→
+              (▹ (λ (a) b))
+              (λ ((▹ a)) b)]
+             [⋱→
+              (▹ (let ([a b]) c))
+              (let ([(▹ a) b]) c)])]
+    ["left" ([⋱→
+              (◇ (▹ c))
+              (◇ (▹ c))]
+             [⋱→
+              (λ (a) (▹ b))
+              (λ ((▹ a)) b)]
+             [⋱→
+              (let ([a b]) (▹ c))
+              (let ([a (▹ b)]) c)]
+             [⋱→
+              (app (▹ c) d ...)
+              (app (▹ c) d ...)]
+             [⋱→
+              ((▹ c) d ...)
+              ((▹ c) d ...)]
+             [⋱→
+              (a ... b (▹ c) d ...)
+              (a ... (▹ b) c d ...)])]
+    ["right" ([⋱→
+               (λ ((▹ a)) b)
+               (λ (a) (▹ b))]
+              [⋱→
+               (let ([(▹ a) b]) c)
+               (let ([a (▹ b)]) c)]
+              [⋱→
+               (let ([a (▹ b)]) c)
+               (let ([a b]) (▹ c))]
+              [⋱→
+               (a ... (▹ b) c d ...)
+               (a ... b (▹ c) d ...)])]
+    ["x" ([⋱→
+           (▹ 0)
+           (▹ (⊙ expr))]
+          [⋱→
+           (▹ (app a b))
+           (▹ (⊙ expr))]
+          [⋱→
+           (▹ (λ (a) b))
+           (▹ (⊙ expr))]
+          [⋱→
+           (▹ (let ([a b]) c))
+           (▹ (⊙ expr))])]))
+
 
 (define (get-transform key)
-  (let ([res (assoc key keymap)])
+  (let ([res (assoc key keymap2)])
     (if res (second res) '([a a]))))
 
 ; perform a sequence of actions
 (define (do-seq stx actions)
   (for/fold ([s stx])
             ([a actions])
-    (runtime-match literals a s)))
+    (runtime-match literals2 a s)))
 
 ; game loop
 (define (loop key [state initial-state])
@@ -145,33 +258,75 @@
                  ('transforms transforms)
                  ('messages messages))
      (match key
-         ; meta keys
-         ["h" (hash-set*
-              state
-              'messages (cons transforms messages))]
-         ; BUG for UNDO: do 0 0 0 u x u z
-         ; results in 'no-match
-         ["z" (match transforms
-               ['() (hash-set*
-                     state
-                     'messages (cons "no undo states" messages)
-                     )]
-               [_ (hash-set*
-                   state
-                   'messages (cons "reverting to previous state" messages)
-                   'stx (do-seq (hash-ref initial-state 'stx)
-                                (rest transforms))
-                   'transforms (rest transforms))])]
-         ; transform keys
-         [_ (define transform (get-transform key))
-            (match (runtime-match literals transform stx)
-              ['no-match state]
-              [new-stx (hash-set*
-                        state
-                        'stx new-stx
-                        'transforms (cons transform transforms)
-                        'messages (cons "performed action" messages)
-                        )])])]))
+       ; meta keys
+       ["h" (hash-set*
+             state
+             'messages (cons transforms messages))]
+       ; BUG for UNDO: do 0 0 0 u x u z
+       ; results in 'no-match
+       ["z" (match transforms
+              ['() (hash-set*
+                    state
+                    'messages (cons "no undo states" messages)
+                    )]
+              [_ (hash-set*
+                  state
+                  'messages (cons "reverting to previous state" messages)
+                  'stx (do-seq (hash-ref initial-state 'stx)
+                               (rest transforms))
+                  'transforms (rest transforms))])]
+       ; transform keys
+       [_ (define transform (get-transform key))
+          (match (runtime-match literals2 transform stx)
+            ['no-match state]
+            [new-stx (hash-set*
+                      state
+                      'stx new-stx
+                      'transforms (cons transform transforms)
+                      'messages (cons "performed action" messages)
+                      )])])]))
+
+
+(define (anno-do-seq stx actions)
+  (for/fold ([s stx])
+            ([a actions])
+    (anno-runtime-match literals2 a s)))
+
+
+(define (loop-anno key state)
+  #;(displayln state)
+  (match state
+    [(hash-table ('stx stx)
+                 ('transforms transforms)
+                 ('messages messages))
+     (match key
+       ; meta keys
+       ["h" (hash-set*
+             state
+             'messages (cons transforms messages))]
+       ; BUG for UNDO: do 0 0 0 u x u z
+       ; results in 'no-match
+       ["z" (match transforms
+              ['() (hash-set*
+                    state
+                    'messages (cons "no undo states" messages)
+                    )]
+              [_ (hash-set*
+                  state
+                  'messages (cons "reverting to previous state" messages)
+                  'stx (anno-do-seq (hash-ref anno-initial-state 'stx)
+                               (rest transforms))
+                  'transforms (rest transforms))])]
+       ; transform keys
+       [_ (define transform (get-transform key))
+          (match (anno-runtime-match literals2 transform stx)
+            ['no-match state]
+            [new-stx (hash-set*
+                      state
+                      'stx new-stx
+                      'transforms (cons transform transforms)
+                      'messages (cons "performed action" messages)
+                      )])])]))
 
 
 ; todo: refactor messages
@@ -182,23 +337,34 @@
 ; (so that all message display is done at a single site)
 
 
-
+(require "layout-lab.rkt")
 
 ; REAL-TIME
 (require 2htdp/image)
 (require 2htdp/universe)
-(big-bang initial-state
+(big-bang anno-initial-state
   [on-key
    (λ (b key)
-     (loop key b))]
+     (loop-anno key b))]
   [to-draw
    (λ (state)
      (match state
        [(hash-table ('stx stx)
                     ('transforms transforms)
                     ('messages messages))
-        (text (pretty-format stx)
+        
+        (displayln (pretty-format stx))
+        (text (pretty-format (strip-most-annotations stx))
               24 "black")])) 800 800])
 
 
+#| the following test indicates that my rewriting rule
+   here performs exponentially in the depth of the
+   first match|#
+
+#; (for/list ([i 20])(time (do-seq (match initial-state
+                                     [(hash-table ('stx stx))
+                                      stx]) (make-list i '([⋱→
+                                                            (▹ (⊙ expr))
+                                                            (pair (▹ (⊙ expr)) (⊙ expr))])))))
 
