@@ -76,12 +76,17 @@
 
 ; start state
 #;(define initial-state
-  #hash((stx . (◇ (▹ (⊙ expr))))
-        (transforms . ())
-        (messages . ("hello"))))
+    #hash((stx . (◇ (▹ (⊙ expr))))
+          (transforms . ())
+          (messages . ("hello"))))
+
+#; (define initial-state-ann
+     #hash((stx . (◇ (p/ ▹ (p/ _ ⊙))) #;(pcons ◇ (pcons (p/ ▹ ⊙) ())))
+           (transforms . ())
+           (messages . ("hello world"))))
 
 (define initial-state-ann
-  #hash((stx . (◇ (p/ ▹ (p/ _ ⊙))) #;(pcons ◇ (pcons (p/ ▹ ⊙) ())))
+  #hash((stx . (◇ (p/ #hash((▹ . ▹)) ⊙)))
         (transforms . ())
         (messages . ("hello world"))))
 
@@ -245,39 +250,18 @@
 ; of what we'd have to do
 (define keymap-ann
   '(["1" ([⋱→
-           (▹ / (_ / ⊙))
+           (▹ / ⊙)
            (▹ / 0)])]
     ["2" ([⋱→
-           (▹ /
-              (_ / ⊙))
-           (_ /
-              (app (▹ / (_ / ⊙)) (_ / ⊙)))])]
-    #;["3" ([⋱→
-           (▹ /
-              ⊙)
-           (_ /
-              (λ ((▹ / ⊙)) ⊙))])]
-    #;["4" ([⋱→
-           (▹ /
-              ⊙)
-           (_ /
-              (let ([(▹ ⊙) ⊙]) ⊙))])]
+           (▹ / ⊙)
+           ( /
+             (app (▹ / ⊙) ( / ⊙)))])]
     ["up" ([(◇ a ... (▹ / b) c ...)
             (◇ a ... (▹ / b) c ...)]
-           #;[⋱→
-              (@hc /
-                   (λ ((▹ @ha / a)) b))
-              (▹ @hc  /
-                 (λ ((@ha / a)) b))]
-           #;[⋱→
-              (let ([(▹ a) b]) c)
-              (▹ (let ([a b]) c))]
-           #;[⋱→
-              (let ([a (▹ b)]) c)
-              (▹ (let ([a b]) c))]
            [⋱→
-            (_ / (a ... (▹ / b) c ...))
-            (▹ / (a ... (_ / b) c ...))])]
+            ( / (a ... (▹ / b) c ...))
+            (▹ / (a ... ( / b) c ...))]
+           )]
     ["down" ([⋱→
               (▹ / ⊙)
               (▹ / ⊙)]
@@ -286,24 +270,13 @@
               (▹ / 0)]
              [⋱→
               (▹ /
-                 (app (_ / a) b))
-              (_ /
-                 (app (▹ / a) b))]
-             #;[⋱→
-                (▹ (λ (a) b))
-                (λ ((▹ a)) b)]
-             #;[⋱→
-                (▹ (let ([a b]) c))
-                (let ([(▹ a) b]) c)])]
+                 (app ( / a) b))
+              ( /
+                (app (▹ / a) b))]
+             )]
     ["left" ([⋱→
               (◇ (▹ / c))
               (◇ (▹ / c))]
-             #;[⋱→
-                (λ (a) (▹ b))
-                (λ ((▹ a)) b)]
-             #;[⋱→
-                (let ([a b]) (▹ c))
-                (let ([a (▹ b)]) c)]
              [⋱→
               (app (▹ / c) d ...)
               (app (▹ / c) d ...)]
@@ -311,32 +284,20 @@
               ((▹ / c) d ...)
               ((▹ / c) d ...)]
              [⋱→
-              (a ... (_ / b) (▹ / c) d ...)
-              (a ... (▹ / b) (_ / c) d ...)])]
-    ["right" (#;[⋱→
-                 (λ ((▹ a)) b)
-                 (λ (a) (▹ b))]
-              #;[⋱→
-                 (let ([(▹ a) b]) c)
-                 (let ([a (▹ b)]) c)]
-              #;[⋱→
-                 (let ([a (▹ b)]) c)
-                 (let ([a b]) (▹ c))]
-              [⋱→
-               (a ... (▹ / b) (_ / c) d ...)
-               (a ... (_ / b) (▹ / c) d ...)])]
+              (a ... ( / b) (▹ / c) d ...)
+              (a ... (▹ / b) ( / c) d ...)]
+             )]
+    ["right" ([⋱→
+               (a ... (▹ / b) ( / c) d ...)
+               (a ... ( / b) (▹ / c) d ...)]
+              )]
     ["x" ([⋱→
            (▹ / 0)
-           (▹ / (_ / ⊙))]
+           (▹ / ⊙)]
           [⋱→
            (▹ / (app a b))
-           (▹ / (_ / ⊙))]
-          #;[⋱→
-             (▹ (λ (a) b))
-             (▹ (⊙ expr))]
-          #;[⋱→
-             (▹ (let ([a b]) c))
-             (▹ (⊙ expr))])]))
+           (▹ / ⊙)]
+          )]))
 
 
 (define (get-transform key)
@@ -372,7 +333,7 @@
                   state
                   'messages (cons "reverting to previous state" messages)
                   'stx (do-seq (hash-ref initial-state-ann 'stx)
-                                    (rest transforms))
+                               (rest transforms))
                   'transforms (rest transforms))])]
        ; transform keys
        [_ (define transform (get-transform key))
@@ -404,14 +365,17 @@
   [on-key
    (λ (b key)
      (loop key b))]
+  [on-release
+   (λ (state key)
+     (match state
+       [(hash-table ('stx stx))
+        (displayln key)
+        (displayln (pretty-format stx))
+        state]))]
   [to-draw
    (λ (state)
      (match state
-       [(hash-table ('stx stx)
-                    ('transforms transforms)
-                    ('messages messages))
-        
-        (displayln (pretty-format stx))
+       [(hash-table ('stx stx))
         (text (pretty-format (strip-most-annotations stx))
               24 "black")])) 800 800])
 
