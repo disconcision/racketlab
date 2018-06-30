@@ -75,15 +75,15 @@
 ; another alternative: when ⊙... selected, ENTER expands it hole + ⊙...
 
 ; start state
-(define initial-state
+#;(define initial-state
   #hash((stx . (◇ (▹ (⊙ expr))))
         (transforms . ())
         (messages . ("hello"))))
 
-(define anno-initial-state
-    #hash((stx . (p/ () (◇ (p/ ▹ (p/ () (⊙ expr))))))
-          (transforms . ())
-          (messages . ("hello"))))
+(define initial-state-ann
+  #hash((stx . (◇ (p/ ▹ (p/ _ ⊙))) #;(pcons ◇ (pcons (p/ ▹ ⊙) ())))
+        (transforms . ())
+        (messages . ("hello world"))))
 
 #;(grammar
    (s (terminal (curry equal? 'expr)))
@@ -241,8 +241,106 @@
            (▹ (⊙ expr))])]))
 
 
+; manually annotating to get an idea
+; of what we'd have to do
+(define keymap-ann
+  '(["1" ([⋱→
+           (▹ / (_ / ⊙))
+           (▹ / 0)])]
+    ["2" ([⋱→
+           (▹ /
+              (_ / ⊙))
+           (_ /
+              (app (▹ / (_ / ⊙)) (_ / ⊙)))])]
+    #;["3" ([⋱→
+           (▹ /
+              ⊙)
+           (_ /
+              (λ ((▹ / ⊙)) ⊙))])]
+    #;["4" ([⋱→
+           (▹ /
+              ⊙)
+           (_ /
+              (let ([(▹ ⊙) ⊙]) ⊙))])]
+    ["up" ([(◇ a ... (▹ / b) c ...)
+            (◇ a ... (▹ / b) c ...)]
+           #;[⋱→
+              (@hc /
+                   (λ ((▹ @ha / a)) b))
+              (▹ @hc  /
+                 (λ ((@ha / a)) b))]
+           #;[⋱→
+              (let ([(▹ a) b]) c)
+              (▹ (let ([a b]) c))]
+           #;[⋱→
+              (let ([a (▹ b)]) c)
+              (▹ (let ([a b]) c))]
+           [⋱→
+            (_ / (a ... (▹ / b) c ...))
+            (▹ / (a ... (_ / b) c ...))])]
+    ["down" ([⋱→
+              (▹ / ⊙)
+              (▹ / ⊙)]
+             [⋱→
+              (▹ / 0)
+              (▹ / 0)]
+             [⋱→
+              (▹ /
+                 (app (_ / a) b))
+              (_ /
+                 (app (▹ / a) b))]
+             #;[⋱→
+                (▹ (λ (a) b))
+                (λ ((▹ a)) b)]
+             #;[⋱→
+                (▹ (let ([a b]) c))
+                (let ([(▹ a) b]) c)])]
+    ["left" ([⋱→
+              (◇ (▹ / c))
+              (◇ (▹ / c))]
+             #;[⋱→
+                (λ (a) (▹ b))
+                (λ ((▹ a)) b)]
+             #;[⋱→
+                (let ([a b]) (▹ c))
+                (let ([a (▹ b)]) c)]
+             [⋱→
+              (app (▹ / c) d ...)
+              (app (▹ / c) d ...)]
+             [⋱→
+              ((▹ / c) d ...)
+              ((▹ / c) d ...)]
+             [⋱→
+              (a ... (_ / b) (▹ / c) d ...)
+              (a ... (▹ / b) (_ / c) d ...)])]
+    ["right" (#;[⋱→
+                 (λ ((▹ a)) b)
+                 (λ (a) (▹ b))]
+              #;[⋱→
+                 (let ([(▹ a) b]) c)
+                 (let ([a (▹ b)]) c)]
+              #;[⋱→
+                 (let ([a (▹ b)]) c)
+                 (let ([a b]) (▹ c))]
+              [⋱→
+               (a ... (▹ / b) (_ / c) d ...)
+               (a ... (_ / b) (▹ / c) d ...)])]
+    ["x" ([⋱→
+           (▹ / 0)
+           (▹ / (_ / ⊙))]
+          [⋱→
+           (▹ / (app a b))
+           (▹ / (_ / ⊙))]
+          #;[⋱→
+             (▹ (λ (a) b))
+             (▹ (⊙ expr))]
+          #;[⋱→
+             (▹ (let ([a b]) c))
+             (▹ (⊙ expr))])]))
+
+
 (define (get-transform key)
-  (let ([res (assoc key keymap2)])
+  (let ([res (assoc key keymap-ann)])
     (if res (second res) '([a a]))))
 
 ; perform a sequence of actions
@@ -252,48 +350,7 @@
     (runtime-match literals2 a s)))
 
 ; game loop
-(define (loop key [state initial-state])
-  (match state
-    [(hash-table ('stx stx)
-                 ('transforms transforms)
-                 ('messages messages))
-     (match key
-       ; meta keys
-       ["h" (hash-set*
-             state
-             'messages (cons transforms messages))]
-       ; BUG for UNDO: do 0 0 0 u x u z
-       ; results in 'no-match
-       ["z" (match transforms
-              ['() (hash-set*
-                    state
-                    'messages (cons "no undo states" messages)
-                    )]
-              [_ (hash-set*
-                  state
-                  'messages (cons "reverting to previous state" messages)
-                  'stx (do-seq (hash-ref initial-state 'stx)
-                               (rest transforms))
-                  'transforms (rest transforms))])]
-       ; transform keys
-       [_ (define transform (get-transform key))
-          (match (runtime-match literals2 transform stx)
-            ['no-match state]
-            [new-stx (hash-set*
-                      state
-                      'stx new-stx
-                      'transforms (cons transform transforms)
-                      'messages (cons "performed action" messages)
-                      )])])]))
-
-
-(define (anno-do-seq stx actions)
-  (for/fold ([s stx])
-            ([a actions])
-    (anno-runtime-match literals2 a s)))
-
-
-(define (loop-anno key state)
+(define (loop key state)
   #;(displayln state)
   (match state
     [(hash-table ('stx stx)
@@ -314,12 +371,13 @@
               [_ (hash-set*
                   state
                   'messages (cons "reverting to previous state" messages)
-                  'stx (anno-do-seq (hash-ref anno-initial-state 'stx)
-                               (rest transforms))
+                  'stx (do-seq (hash-ref initial-state-ann 'stx)
+                                    (rest transforms))
                   'transforms (rest transforms))])]
        ; transform keys
        [_ (define transform (get-transform key))
-          (match (anno-runtime-match literals2 transform stx)
+          #;(println transform)
+          (match (runtime-match literals2 transform stx)
             ['no-match state]
             [new-stx (hash-set*
                       state
@@ -342,10 +400,10 @@
 ; REAL-TIME
 (require 2htdp/image)
 (require 2htdp/universe)
-(big-bang anno-initial-state
+(big-bang initial-state-ann
   [on-key
    (λ (b key)
-     (loop-anno key b))]
+     (loop key b))]
   [to-draw
    (λ (state)
      (match state
