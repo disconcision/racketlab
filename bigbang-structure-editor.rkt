@@ -86,7 +86,7 @@
            (messages . ("hello world"))))
 
 (define initial-state-ann
-  #hash((stx . (◇ (p/ #hash((▹ . ▹)) ⊙)))
+  #hash((stx . (◇ (p/ #hash((▹ . ▹) (sort . expr)) ⊙)))
         (transforms . ())
         (messages . ("hello world"))))
 
@@ -96,15 +96,15 @@
          (pair expr expr)))
 
 ; list of literals (generate from grammar)
-(define literals
-  #hash((dat . ())
-        (void . ())
-        (box . ())
-        (pair . ())
-        (◇ . ())
-        (▹ . ())
-        (⊙ . ())
-        (expr . ())))
+#;(define literals
+    #hash((dat . ())
+          (void . ())
+          (box . ())
+          (pair . ())
+          (◇ . ())
+          (▹ . ())
+          (⊙ . ())
+          (expr . ())))
 
 ; map from keys to functions
 (define keymap
@@ -149,7 +149,7 @@
      (render-let stx)])
 
 
-(define literals2
+(define literals
   #hash((app . ())
         (λ . ())
         (let . ())
@@ -157,7 +157,8 @@
         (◇ . ())
         (▹ . ())
         (⊙ . ())
-        (expr . ())))
+        (expr . ())
+        (pat . ())))
 
 (define keymap2
   '(["1" ([⋱→
@@ -246,9 +247,7 @@
            (▹ (⊙ expr))])]))
 
 
-; manually annotating to get an idea
-; of what we'd have to do
-(define keymap-ann
+(define keymap-ann-before-remainders
   '(["1" ([⋱→
            (▹ / ⊙)
            (▹ / 0)])]
@@ -299,6 +298,67 @@
            (▹ / ⊙)]
           )]))
 
+(define keymap-ann
+  '(["1" ([⋱→
+           (▹ (sort expr) As ...
+              / ⊙)
+           (▹ (sort expr) As ...
+              / 0)])]
+    ["2" ([⋱→
+           (▹ (sort expr) As ...
+              / ⊙)
+           ((sort expr) As ...
+                        / (app (▹ (sort expr) / ⊙)
+                               ((sort expr) / ⊙)))])]
+    ["up" ([(◇ a ... (▹ As ... / b) c ...)
+            (◇ a ... (▹ As ... / b) c ...)]
+           [⋱→
+            (As ... /
+                (a ... (▹ Bs ... / b) c ...))
+            (▹ As ... /
+               (a ... (Bs ... / b) c ...))]
+           )]
+    ["down" ([⋱→
+              (▹ As ... / ⊙)
+              (▹ As ... / ⊙)]
+             [⋱→
+              (▹ As ... / 0)
+              (▹ As ... / 0)]
+             [⋱→
+              (▹ As ... /
+                 (app (Bs ... / a) b))
+              (As ... /
+                  (app (▹ Bs ... / a) b))]
+             )]
+    ["left" ([⋱→
+              (◇ (▹ As ... / c))
+              (◇ (▹ As ... / c))]
+             [⋱→
+              (app (▹ As ... / c) d ...)
+              (app (▹ As ... / c) d ...)]
+             [⋱→
+              ((▹ As ... / c) d ...)
+              ((▹ As ... / c) d ...)]
+             [⋱→
+              (a ... (As ... / b) (▹ Bs ... / c) d ...)
+              (a ... (▹ As ... / b) (Bs ... / c) d ...)]
+             )]
+    ["right" ([⋱→
+               (a ... (▹ As ... / b) (Bs ... / c) d ...)
+               (a ... (As ... / b) (▹ Bs ... / c) d ...)]
+              )]
+    ["x" ([⋱→
+           (▹ As ...
+              / 0)
+           (▹ As ...
+              / ⊙)]
+          [⋱→
+           (▹ As ...
+              / (app a b))
+           (▹ As ...
+              / ⊙)]
+          )]))
+
 
 (define (get-transform key)
   (let ([res (assoc key keymap-ann)])
@@ -308,7 +368,7 @@
 (define (do-seq stx actions)
   (for/fold ([s stx])
             ([a actions])
-    (runtime-match literals2 a s)))
+    (runtime-match literals a s)))
 
 ; game loop
 (define (loop key state)
@@ -338,7 +398,7 @@
        ; transform keys
        [_ (define transform (get-transform key))
           #;(println transform)
-          (match (runtime-match literals2 transform stx)
+          (match (runtime-match literals transform stx)
             ['no-match state]
             [new-stx (hash-set*
                       state
@@ -348,12 +408,27 @@
                       )])])]))
 
 
-; todo: refactor messages
-; add a history of messages to hash
-; meta actions can generate new messages
-; if a message has been added (compare against old)
-; then print the new message
-; (so that all message display is done at a single site)
+
+; project cursor and sort info for holes
+(define (project stx)
+  (define @ project)
+  (match stx
+    [`(p/ ▹ ,stx)
+     `(▹ ,(@ stx))]
+    [`(p/ ,(and (hash-table ('sort sort))
+                (hash-table ('▹ _))) ⊙)
+     `(▹ (⊙ ,sort))]
+    [`(p/ ,(hash-table ('sort sort)) ⊙)
+     `(⊙ ,sort)]
+    [`(p/ ,(hash-table ('▹ _)) ,stx)
+     `(▹ ,(@ stx))]
+    [`(p/ ,ann ,stx)
+     (@ stx)]
+    [(? list?) (map @ stx)]
+    [x x]))
+
+
+
 
 
 (require "layout-lab.rkt")
@@ -363,20 +438,19 @@
 (require 2htdp/universe)
 (big-bang initial-state-ann
   [on-key
-   (λ (b key)
-     (loop key b))]
-  [on-release
    (λ (state key)
      (match state
        [(hash-table ('stx stx))
         (displayln key)
         (displayln (pretty-format stx))
-        state]))]
+        (displayln (project stx))])
+     (loop key state))]
   [to-draw
    (λ (state)
      (match state
        [(hash-table ('stx stx))
-        (text (pretty-format (strip-most-annotations stx))
+        (render stx)
+        #;(text (pretty-format (project stx))
               24 "black")])) 800 800])
 
 

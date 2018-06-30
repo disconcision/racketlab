@@ -69,23 +69,59 @@
 (define datum-color (make-color 0 120 240))
 (define identifier-outline-color (make-color 150 155 205))
 ;(define identifier-color (make-color 0 255 255))
-(define call-outline-color (make-color 250 40 220))
+(define app-color (make-color 250 40 220))
 (define lambda-color (make-color 0 220 0))
 (define let-color (make-color 0 255 255))
 
+(define selection-color (make-color 0 100 255))
+(define hole-color (make-color 200 200 200))
+(define zero-color (make-color 0 0 0))
+
+#; (define (box-project fruct)
+     (match fruct
+       [`(◇ ,a) (box-project a)]
+       [`(p/ ,anns ,stx)
+        (render stx)]
+       #;[_ (println fruct)]))
+
+
+
 #| render : stx → image |#
-(define (render stx)
-  (match stx
+(define (render fruct)
+  (match fruct
+    [`(◇ ,a) (render a)]
+
+    [`(p/ ,(hash-table ('▹ _) ('sort sort)) 0)
+     (above (text (symbol->string '▹0) 24 selection-color)
+            (text (string-upcase (symbol->string sort)) 8 (make-color 200 0 0)))]
+    [`(p/ ,_ 0)
+     (text "0" 18 zero-color)]
+    
+    [`(p/ ,(hash-table ('▹ _) ('sort sort)) ⊙)
+     (above (text (symbol->string '▹⊙) 24 selection-color)
+            (text (string-upcase (symbol->string sort)) 8 (make-color 200 0 0)))]
+    [`(p/ ,_ ⊙)
+     (text (symbol->string '⊙) 18 hole-color)]
+    
+    [`(p/ ,(hash-table ('▹ _)) (app ,f ,as ...))
+     (println "yeh")
+        (render-app selection-color #t `(app ,f ,@as))]
+    [`(p/ ,_ (app ,f ,as ...))
+        (render-app app-color #f `(app ,f ,@as))]
+    
+    [`(p/ ,anns ,stx)
+        (render stx)]
+    
     [(? number?)
-     (render-datum stx)]
+     (render-datum fruct)]
     [(? symbol?)
-     (render-identifier stx)]
+     (render-identifier fruct)]
     [`(app ,f ,as ...)
-     (render-call stx)]
+     (render-app app-color #f fruct)]
     [`(λ ,p ,xs ...)
-     (render-λ stx)]
+     (render-λ fruct)]
     [`(let ,c ,xs ...)
-     (render-let stx)]))
+     (render-let fruct)]))
 
 ; rendering helpers
 (define (render-list-horizontal stx)
@@ -138,14 +174,17 @@
 (define (render-identifier stx)
   (text (~a stx) char-height identifier-color))
 
-(define (render-call stx)
+(define (render-app color selected? stx)
   (match stx
     [`(app ,f ,as ...)
      (outline-image
-      call-outline-color
+      color
       (beside/align*
        "center"
-       (text (~a " app ") 12 call-outline-color)
+       (if selected?
+           (above (beside (text (~a "▹") 24 color) (text (~a " app ") 12 color))
+                  (text (string-upcase (symbol->string 'expr)) 8 (make-color 200 0 0)))
+           (text (~a " app ") 12 color))
        (render f) ; what if we want to impose a color on function-term somehow?
        (render unit-spacer)
        (apply beside/align* "center" (map (λ (x) (render-list-horizontal `(,x ,unit-spacer))) as))))]))
