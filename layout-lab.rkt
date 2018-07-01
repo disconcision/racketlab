@@ -66,16 +66,13 @@
 
 
 (define identifier-color (make-color 150 155 205))
-(define datum-color (make-color 0 120 240))
-(define identifier-outline-color (make-color 150 155 205))
-;(define identifier-color (make-color 0 255 255))
 (define app-color (make-color 250 40 220))
 (define lambda-color (make-color 0 220 0))
 (define let-color (make-color 0 255 255))
-
+(define var-color (make-color 0 0 0))
 (define selection-color (make-color 0 100 255))
 (define hole-color (make-color 200 200 200))
-(define zero-color (make-color 0 0 0))
+(define datum-color (make-color 0 0 0))
 
 #; (define (box-project fruct)
      (match fruct
@@ -95,22 +92,37 @@
      (above (text (symbol->string '▹0) 24 selection-color)
             (text (string-upcase (symbol->string sort)) 8 (make-color 200 0 0)))]
     [`(p/ ,_ 0)
-     (text "0" 18 zero-color)]
+     (text "0" 18 datum-color)]
     
     [`(p/ ,(hash-table ('▹ _) ('sort sort)) ⊙)
      (above (text (symbol->string '▹⊙) 24 selection-color)
             (text (string-upcase (symbol->string sort)) 8 (make-color 200 0 0)))]
     [`(p/ ,_ ⊙)
      (text (symbol->string '⊙) 18 hole-color)]
+
+    ; temporary free text form
+    [`(p/ ,(hash-table ('▹ _) ('sort 'char)) ,(? symbol? s))
+     (text (string-append "▹" (symbol->string s)) 24 selection-color)]
+    [`(p/ ,(hash-table ('sort 'char)) ,(? symbol? s))
+     (text (symbol->string s) 24 datum-color)]
+
+    [`(p/ ,(hash-table ('▹ _)) (var ,a))
+     (render-var selection-color #t `(var ,a))]
+    [`(p/ ,_ (var ,a))
+     (render-var var-color #f `(var ,a))]
     
     [`(p/ ,(hash-table ('▹ _)) (app ,f ,as ...))
-     (println "yeh")
-        (render-app selection-color #t `(app ,f ,@as))]
+     (render-app selection-color #t `(app ,f ,@as))]
     [`(p/ ,_ (app ,f ,as ...))
-        (render-app app-color #f `(app ,f ,@as))]
-    
-    [`(p/ ,anns ,stx)
-        (render stx)]
+     (render-app app-color #f `(app ,f ,@as))]
+
+    [`(p/ ,(hash-table ('▹ _)) (λ (,a) ,b))
+     (render-λ selection-color #t `(λ (,a) ,b))]
+    [`(p/ ,_ (λ (,a) ,b))
+     (render-λ lambda-color #f `(λ (,a) ,b))]
+
+    #;[`(p/ ,anns ,stx)
+       (render stx)]
     
     [(? number?)
      (render-datum fruct)]
@@ -119,7 +131,7 @@
     [`(app ,f ,as ...)
      (render-app app-color #f fruct)]
     [`(λ ,p ,xs ...)
-     (render-λ fruct)]
+     (render-λ lambda-color #f fruct)]
     [`(let ,c ,xs ...)
      (render-let fruct)]))
 
@@ -174,6 +186,19 @@
 (define (render-identifier stx)
   (text (~a stx) char-height identifier-color))
 
+(define (render-var color selected? stx)
+  (match stx
+    [`(var ,a)
+     (outline-image
+      color
+      (beside/align*
+       "center"
+       (if selected?
+           (above (beside (text (~a "▹") 24 color) (text (~a " var ") 12 color))
+                  (text (string-upcase (symbol->string 'pat)) 8 (make-color 200 0 0)))
+           (text (~a " var ") 12 color))
+       (render a)))]))
+
 (define (render-app color selected? stx)
   (match stx
     [`(app ,f ,as ...)
@@ -189,13 +214,16 @@
        (render unit-spacer)
        (apply beside/align* "center" (map (λ (x) (render-list-horizontal `(,x ,unit-spacer))) as))))]))
 
-(define (render-λ stx)
+(define (render-λ color selected? stx)
   (match stx
     [`(λ (,params ...) ,exprs ...)
      (outline-vertical-header-indent-body
-      lambda-color 8
-      (text (~a " fun ") 12 lambda-color)
-      (outline-image lambda-color
+      color 8
+      (if selected?
+          (above (beside (text (~a "▹") 24 color) (text (~a " fun ") 12 color))
+                 (text (string-upcase (symbol->string 'expr)) 8 (make-color 200 0 0)))
+          (text (~a " fun ") 12 color))
+      (outline-image color
                      (render-list-horizontal params))
       (render-list-vertical exprs))]))
 

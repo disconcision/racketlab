@@ -55,6 +55,31 @@
 ; provided names are interpreted appropriately
 
 
+
+(define save-state-1
+  '(◇ (p/
+       #hash((sort . expr) (▹ . ▹))
+       (λ ((p/ #hash((sort . expr)) ⊙))
+         (p/
+          #hash((sort . expr))
+          (app
+           (p/
+            #hash((sort . expr))
+            (λ ((p/ #hash((sort . expr)) ⊙)) (p/ #hash((sort . expr)) 0)))
+           (p/
+            #hash((sort . expr))
+            (λ ((p/ #hash((sort . expr)) ⊙))
+              (p/
+               #hash((sort . expr))
+               (app
+                (p/ #hash((sort . expr)) ⊙)
+                (p/
+                 #hash((sort . expr))
+                 (app
+                  (p/ #hash((sort . expr)) ⊙)
+                  (p/ #hash((sort . expr)) 0)))))))))))))
+
+
 ; ⊙ is (hole <type>)
 #; ((⊙ pat)
     (list (⊙ pat) → (pvar (⊙ id))
@@ -108,31 +133,31 @@
 
 ; map from keys to functions
 (define keymap
-  '(["0" ([⋱→
+  '(["0" ([⋱
            (▹ (⊙ expr))
            (pair (▹ (⊙ expr)) (⊙ expr))])]
     ["u" ([(◇ a ... (▹ b) c ...)
            (◇ a ... (▹ b) c ...)]
           ; add runtime-match macro for guards like this
-          [⋱→
+          [⋱
            (a ... (▹ b) c ...)
            (▹ (a ... b c ...))])]
-    ["d" ([⋱→
+    ["d" ([⋱
            (▹ (⊙ _))
            (▹ (⊙ _))]
-          [⋱→
+          [⋱
            (▹ (pair a b))
            (pair (▹ a) b)])]
-    ["l" ([⋱→
+    ["l" ([⋱
            (pair (▹ c) d ...)
            (pair (▹ c) d ...)]
-          [⋱→
+          [⋱
            (a ... b (▹ c) d ...)
            (a ... (▹ b) c d ...)])]
-    ["r" ([⋱→
+    ["r" ([⋱
            (a ... (▹ b) c d ...)
            (a ... b (▹ c) d ...)])]
-    ["x" ([⋱→
+    ["x" ([⋱
            (▹ (pair a b))
            (▹  (⊙ expr))])]))
 
@@ -160,201 +185,231 @@
         (expr . ())
         (pat . ())))
 
-(define keymap2
-  '(["1" ([⋱→
-           (▹ (⊙ expr))
-           (▹ 0)])]
-    ["2" ([⋱→
-           (▹ (⊙ expr))
-           (app (▹ (⊙ expr)) (⊙ expr))])]
-    ["3" ([⋱→
-           (▹ (⊙ expr))
-           (λ ((▹ (⊙ expr))) (⊙ expr))])]
-    ["4" ([⋱→
-           (▹ (⊙ expr))
-           (let ([(▹ (⊙ expr)) (⊙ expr)]) (⊙ expr))])]
-    ["up" ([(◇ a ... (▹ b) c ...)
-            (◇ a ... (▹ b) c ...)]
-           ; add runtime-match macro for guards like this
-           [⋱→
-            (λ ((▹ a)) b)
-            (▹ (λ (a) b))]
-           [⋱→
-            (let ([(▹ a) b]) c)
-            (▹ (let ([a b]) c))]
-           [⋱→
-            (let ([a (▹ b)]) c)
-            (▹ (let ([a b]) c))]
-           [⋱→
-            (a ... (▹ b) c ...)
-            (▹ (a ... b c ...))])]
-    ["down" ([⋱→
-              (▹ (⊙ _))
-              (▹ (⊙ _))]
-             [⋱→
-              (▹ 0)
-              (▹ 0)]
-             [⋱→
-              (▹ (app a b))
-              (app (▹ a) b)]
-             [⋱→
-              (▹ (λ (a) b))
-              (λ ((▹ a)) b)]
-             [⋱→
-              (▹ (let ([a b]) c))
-              (let ([(▹ a) b]) c)])]
-    ["left" ([⋱→
-              (◇ (▹ c))
-              (◇ (▹ c))]
-             [⋱→
-              (λ (a) (▹ b))
-              (λ ((▹ a)) b)]
-             [⋱→
-              (let ([a b]) (▹ c))
-              (let ([a (▹ b)]) c)]
-             [⋱→
-              (app (▹ c) d ...)
-              (app (▹ c) d ...)]
-             [⋱→
-              ((▹ c) d ...)
-              ((▹ c) d ...)]
-             [⋱→
-              (a ... b (▹ c) d ...)
-              (a ... (▹ b) c d ...)])]
-    ["right" ([⋱→
+#; (define keymap2
+     '(["1" ([⋱
+              (▹ (⊙ expr))
+              (▹ 0)])]
+       ["2" ([⋱
+              (▹ (⊙ expr))
+              (app (▹ (⊙ expr)) (⊙ expr))])]
+       ["3" ([⋱
+              (▹ (⊙ expr))
+              (λ ((▹ (⊙ expr))) (⊙ expr))])]
+       ["4" ([⋱
+              (▹ (⊙ expr))
+              (let ([(▹ (⊙ expr)) (⊙ expr)]) (⊙ expr))])]
+       ["up" ([(◇ a ... (▹ b) c ...)
+               (◇ a ... (▹ b) c ...)]
+              ; add runtime-match macro for guards like this
+              [⋱
                (λ ((▹ a)) b)
-               (λ (a) (▹ b))]
-              [⋱→
+               (▹ (λ (a) b))]
+              [⋱
                (let ([(▹ a) b]) c)
-               (let ([a (▹ b)]) c)]
-              [⋱→
+               (▹ (let ([a b]) c))]
+              [⋱
                (let ([a (▹ b)]) c)
-               (let ([a b]) (▹ c))]
-              [⋱→
-               (a ... (▹ b) c d ...)
-               (a ... b (▹ c) d ...)])]
-    ["x" ([⋱→
-           (▹ 0)
-           (▹ (⊙ expr))]
-          [⋱→
-           (▹ (app a b))
-           (▹ (⊙ expr))]
-          [⋱→
-           (▹ (λ (a) b))
-           (▹ (⊙ expr))]
-          [⋱→
-           (▹ (let ([a b]) c))
-           (▹ (⊙ expr))])]))
+               (▹ (let ([a b]) c))]
+              [⋱
+               (a ... (▹ b) c ...)
+               (▹ (a ... b c ...))])]
+       ["down" ([⋱
+                 (▹ (⊙ _))
+                 (▹ (⊙ _))]
+                [⋱
+                 (▹ 0)
+                 (▹ 0)]
+                [⋱
+                 (▹ (app a b))
+                 (app (▹ a) b)]
+                [⋱
+                 (▹ (λ (a) b))
+                 (λ ((▹ a)) b)]
+                [⋱
+                 (▹ (let ([a b]) c))
+                 (let ([(▹ a) b]) c)])]
+       ["left" ([⋱
+                 (◇ (▹ c))
+                 (◇ (▹ c))]
+                [⋱
+                 (λ (a) (▹ b))
+                 (λ ((▹ a)) b)]
+                [⋱
+                 (let ([a b]) (▹ c))
+                 (let ([a (▹ b)]) c)]
+                [⋱
+                 (app (▹ c) d ...)
+                 (app (▹ c) d ...)]
+                [⋱
+                 ((▹ c) d ...)
+                 ((▹ c) d ...)]
+                [⋱
+                 (a ... b (▹ c) d ...)
+                 (a ... (▹ b) c d ...)])]
+       ["right" ([⋱
+                  (λ ((▹ a)) b)
+                  (λ (a) (▹ b))]
+                 [⋱
+                  (let ([(▹ a) b]) c)
+                  (let ([a (▹ b)]) c)]
+                 [⋱
+                  (let ([a (▹ b)]) c)
+                  (let ([a b]) (▹ c))]
+                 [⋱
+                  (a ... (▹ b) c d ...)
+                  (a ... b (▹ c) d ...)])]
+       ["x" ([⋱
+              (▹ 0)
+              (▹ (⊙ expr))]
+             [⋱
+              (▹ (app a b))
+              (▹ (⊙ expr))]
+             [⋱
+              (▹ (λ (a) b))
+              (▹ (⊙ expr))]
+             [⋱
+              (▹ (let ([a b]) c))
+              (▹ (⊙ expr))])]))
 
 
-(define keymap-ann-before-remainders
-  '(["1" ([⋱→
-           (▹ / ⊙)
-           (▹ / 0)])]
-    ["2" ([⋱→
-           (▹ / ⊙)
-           ( /
-             (app (▹ / ⊙) ( / ⊙)))])]
-    ["up" ([(◇ a ... (▹ / b) c ...)
-            (◇ a ... (▹ / b) c ...)]
-           [⋱→
-            ( / (a ... (▹ / b) c ...))
-            (▹ / (a ... ( / b) c ...))]
-           )]
-    ["down" ([⋱→
+#; (define keymap-ann-before-remainders
+     '(["1" ([⋱
               (▹ / ⊙)
-              (▹ / ⊙)]
-             [⋱→
-              (▹ / 0)
-              (▹ / 0)]
-             [⋱→
-              (▹ /
-                 (app ( / a) b))
+              (▹ / 0)])]
+       ["2" ([⋱
+              (▹ / ⊙)
               ( /
-                (app (▹ / a) b))]
-             )]
-    ["left" ([⋱→
-              (◇ (▹ / c))
-              (◇ (▹ / c))]
-             [⋱→
-              (app (▹ / c) d ...)
-              (app (▹ / c) d ...)]
-             [⋱→
-              ((▹ / c) d ...)
-              ((▹ / c) d ...)]
-             [⋱→
-              (a ... ( / b) (▹ / c) d ...)
-              (a ... (▹ / b) ( / c) d ...)]
-             )]
-    ["right" ([⋱→
-               (a ... (▹ / b) ( / c) d ...)
-               (a ... ( / b) (▹ / c) d ...)]
+                (app (▹ / ⊙) ( / ⊙)))])]
+       ["up" ([(◇ a ... (▹ / b) c ...)
+               (◇ a ... (▹ / b) c ...)]
+              [⋱
+               ( / (a ... (▹ / b) c ...))
+               (▹ / (a ... ( / b) c ...))]
               )]
-    ["x" ([⋱→
-           (▹ / 0)
-           (▹ / ⊙)]
-          [⋱→
-           (▹ / (app a b))
-           (▹ / ⊙)]
-          )]))
+       ["down" ([⋱
+                 (▹ / ⊙)
+                 (▹ / ⊙)]
+                [⋱
+                 (▹ / 0)
+                 (▹ / 0)]
+                [⋱
+                 (▹ /
+                    (app ( / a) b))
+                 ( /
+                   (app (▹ / a) b))]
+                )]
+       ["left" ([⋱
+                 (◇ (▹ / c))
+                 (◇ (▹ / c))]
+                [⋱
+                 (app (▹ / c) d ...)
+                 (app (▹ / c) d ...)]
+                [⋱
+                 ((▹ / c) d ...)
+                 ((▹ / c) d ...)]
+                [⋱
+                 (a ... ( / b) (▹ / c) d ...)
+                 (a ... (▹ / b) ( / c) d ...)]
+                )]
+       ["right" ([⋱
+                  (a ... (▹ / b) ( / c) d ...)
+                  (a ... ( / b) (▹ / c) d ...)]
+                 )]
+       ["x" ([⋱
+              (▹ / 0)
+              (▹ / ⊙)]
+             [⋱
+              (▹ / (app a b))
+              (▹ / ⊙)]
+             )]))
 
 (define keymap-ann
-  '(["1" ([⋱→
+  '(["1" ([⋱
            (▹ (sort expr) As ...
               / ⊙)
            (▹ (sort expr) As ...
               / 0)])]
-    ["2" ([⋱→
+    ["2" ([⋱
            (▹ (sort expr) As ...
               / ⊙)
            ((sort expr) As ...
                         / (app (▹ (sort expr) / ⊙)
                                ((sort expr) / ⊙)))])]
+    ["3" ([⋱
+           (▹ (sort expr) As ...
+              / ⊙)
+           ((sort expr) As ...
+                        / (λ ((▹ (sort expr) / ⊙))
+                            ((sort expr) / ⊙)))])]
     ["up" ([(◇ a ... (▹ As ... / b) c ...)
             (◇ a ... (▹ As ... / b) c ...)]
-           [⋱→
+           [⋱
+            (As ...
+             / (λ ((▹ Bs ... / a)) b))
+            (▹ As ...
+               / (λ ((Bs ... / a)) b))]
+           [⋱
             (As ... /
                 (a ... (▹ Bs ... / b) c ...))
             (▹ As ... /
                (a ... (Bs ... / b) c ...))]
            )]
-    ["down" ([⋱→
+    ["down" ([⋱
               (▹ As ... / ⊙)
               (▹ As ... / ⊙)]
-             [⋱→
+             [⋱
               (▹ As ... / 0)
               (▹ As ... / 0)]
-             [⋱→
+             [⋱
               (▹ As ... /
                  (app (Bs ... / a) b))
               (As ... /
                   (app (▹ Bs ... / a) b))]
+             [⋱
+              (▹ As ...
+                 / (λ ((Bs ... / a)) b))
+              (As ...
+               / (λ ((▹ Bs ... / a)) b))]
              )]
-    ["left" ([⋱→
+    ["left" ([⋱
               (◇ (▹ As ... / c))
               (◇ (▹ As ... / c))]
-             [⋱→
+             [⋱
               (app (▹ As ... / c) d ...)
               (app (▹ As ... / c) d ...)]
-             [⋱→
+             [⋱
+              (λ ((▹ Bs ... / a)) b)
+              (λ ((▹ Bs ... / a)) b)]
+             [⋱
+              (λ ((As ... / a)) (▹ Bs ... / b))
+              (λ ((▹ Bs ... / a)) (Bs ... / b))]
+             [⋱
               ((▹ As ... / c) d ...)
               ((▹ As ... / c) d ...)]
-             [⋱→
+             [⋱
               (a ... (As ... / b) (▹ Bs ... / c) d ...)
               (a ... (▹ As ... / b) (Bs ... / c) d ...)]
              )]
-    ["right" ([⋱→
+    ["right" ([⋱
+               (λ ((▹ As ... / a)) (Bs ... / b))
+               (λ ((As ... / a)) (▹ Bs ... / b))]
+              [⋱
                (a ... (▹ As ... / b) (Bs ... / c) d ...)
                (a ... (As ... / b) (▹ Bs ... / c) d ...)]
               )]
-    ["x" ([⋱→
+    ["x" ([⋱
            (▹ As ...
               / 0)
            (▹ As ...
               / ⊙)]
-          [⋱→
+          [⋱
            (▹ As ...
               / (app a b))
+           (▹ As ...
+              / ⊙)]
+          [⋱
+           (▹ As ...
+              / (λ (a) b))
            (▹ As ...
               / ⊙)]
           )]))
@@ -379,6 +434,7 @@
                  ('messages messages))
      (match key
        ; meta keys
+       ["f1" (hash-set initial-state-ann 'stx save-state-1)]
        ["h" (hash-set*
              state
              'messages (cons transforms messages))]
@@ -451,7 +507,7 @@
        [(hash-table ('stx stx))
         (render stx)
         #;(text (pretty-format (project stx))
-              24 "black")])) 800 800])
+                24 "black")])) 800 800])
 
 
 #| the following test indicates that my rewriting rule
@@ -460,7 +516,7 @@
 
 #; (for/list ([i 20])(time (do-seq (match initial-state
                                      [(hash-table ('stx stx))
-                                      stx]) (make-list i '([⋱→
+                                      stx]) (make-list i '([⋱
                                                             (▹ (⊙ expr))
                                                             (pair (▹ (⊙ expr)) (⊙ expr))])))))
 
