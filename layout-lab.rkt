@@ -106,10 +106,10 @@
     [`(p/ ,(hash-table ('sort 'char)) ,(? symbol? s))
      (text (symbol->string s) 24 datum-color)]
 
-    [`(p/ ,(hash-table ('▹ _)) (var ,a))
-     (render-var selection-color #t `(var ,a))]
-    [`(p/ ,_ (var ,a))
-     (render-var var-color #f `(var ,a))]
+    [`(p/ ,(hash-table ('▹ _) ('sort sort)) (var ,a))
+     (render-var selection-color #t sort `(var ,a))]
+    [`(p/ ,(hash-table ('sort sort)) (var ,a))
+     (render-var var-color #f sort `(var ,a))]
     
     [`(p/ ,(hash-table ('▹ _)) (app ,f ,as ...))
      (render-app selection-color #t `(app ,f ,@as))]
@@ -186,7 +186,7 @@
 (define (render-identifier stx)
   (text (~a stx) char-height identifier-color))
 
-(define (render-var color selected? stx)
+(define (render-var color selected? sort stx)
   (match stx
     [`(var ,a)
      (outline-image
@@ -195,7 +195,7 @@
        "center"
        (if selected?
            (above (beside (text (~a "▹") 24 color) (text (~a " var ") 12 color))
-                  (text (string-upcase (symbol->string 'pat)) 8 (make-color 200 0 0)))
+                  (text (string-upcase (symbol->string sort)) 8 (make-color 200 0 0)))
            (text (~a " var ") 12 color))
        (render a)))]))
 

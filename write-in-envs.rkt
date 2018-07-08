@@ -1,5 +1,6 @@
 #lang racket
 
+(provide write-in-envs)
 
 (define p1
   '(◇
@@ -33,7 +34,9 @@
                          (p/ #hash((in-scope . (name2 name)) (sort . expr)) ⊙))))))))))
 
 
-
+'(p/ #hash((in-scope . ()) (sort . expr))
+     (λ ((p/ #hash((sort . pat) (▹ . ▹)) ⊙))
+       (p/ #hash((sort . expr)) ⊙)))
 
 (define (write-in-envs stx)
   (define W (curry write-in-envs))
@@ -44,6 +47,20 @@
 
     [`(p/ ,anns ⊙)
      `(p/ ,anns ⊙)]
+
+    [`(p/ ,(and top-hash (hash-table ('in-scope env)))
+          (var (p/ ,var-anns ,var-name)))
+     `(p/ ,top-hash
+          (var (p/ ,(hash-set var-anns 'in-scope env) ,var-name)))]
+
+    [`(p/ ,(and top-hash (hash-table ('in-scope env)))
+          (λ ((p/ ,a ⊙))
+            (p/ ,body-anns
+                ,body)))
+     `(p/ ,top-hash
+          (λ ((p/ ,a ⊙))
+            ,(W `(p/ ,(hash-set body-anns 'in-scope env)
+                     ,body))))]
     
     [`(p/ ,(and top-hash (hash-table ('in-scope env)))
           (λ ((p/ ,a (var (p/ ,b ,id))))

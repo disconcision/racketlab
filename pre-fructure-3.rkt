@@ -1,6 +1,7 @@
 #lang racket
 
 (require "../projects/fructerm/fructerm.rkt")
+(require "write-in-envs.rkt")
 
 ; a grammar
 
@@ -102,7 +103,12 @@
            (▹ (sort pat) As ...
               / ⊙)
            ((sort pat) As ...
-                       / (var (▹ (sort char) / ⊙)))])]
+                       / (var (▹ (sort char) / ⊙)))]
+          [⋱
+           (▹ (sort expr) As ...
+              / ⊙)
+           ((sort expr) As ...
+                        / (var (▹ (sort char) / ⊙)))])]
     ["up" ([(◇ a ... (▹ As ... / b) c ...)
             (◇ a ... (▹ As ... / b) c ...)]
            [⋱
@@ -231,9 +237,9 @@
            (define insert
              `([⋱ (▹ (sort char) / a)
                   (▹ (sort char) / ,new-value)]))
-           (define inserted-result
+           (define inserted-result ; THIS HAS A PROBLEM WITH THE LITERAL a. check pattern-match lib
              (runtime-match (hash-set literals new-value '_) insert stx))
-           (println `(inswerted ,inserted-result))
+           (println `(inserted ,inserted-result))
            (hash-set*
             state
             'stx inserted-result)])]
@@ -246,16 +252,18 @@
                 (define my-transform2
                   `([⋱ (▹ (sort char) / ⊙)
                        (▹ (sort char) / ||)]))
-                (if (equal? 0 (runtime-match literals my-transform stx))
-                    (begin (println "yeah")
-                           (hash-set*
-                            state
-                            'stx (runtime-match (hash-set literals '|| '_)
-                                                my-transform2
-                                                stx)
-                            'mode 'text-entry))
-                    (begin (println "nah")
-                           state))]
+                (cond [(equal? 0 (runtime-match literals my-transform stx))
+                       (begin (println "yeah")
+                              (hash-set*
+                               state
+                               'stx (runtime-match (hash-set literals '|| '_)
+                                                   my-transform2
+                                                   stx)
+                               'mode 'text-entry))]
+                      [else
+                       (begin (println "nah")
+                              state)]                  
+                      )]
           ["f1" (hash-set initial-state 'stx save-state-1)]
           ["h"  (hash-set*
                  state
@@ -287,6 +295,63 @@
 
 
 
+#| notes for expr var entry
+
+when an expr var /hole/ is selected, and enter is pressed,
+the hole is first replaced by a blank symbol
+then we enter text autocomplete mode
+
+when a character is entered, we add that char to the current symbol
+if the current symbol doesn't prefix-match against the in-scope list
+the symbol should be rendered in red
+otherwise, it should be rendered in green
+
+should we allow entry of bad chars period? or just refuse to?
+
+|#
+
+
+#| notes on transertion searchlection duality
+
+well maybe later
+
+more prosaically for now:
+
+hit enter while hole is selected
+if only one thing can fit in that hole, it is inserted
+(so need to have list of things that can fill holes of certain sorts)
+otherwise, the LIST of things that can be entered is inserted
+and we active searchlection mode, but CONFINED to that list
+so we naviate the cursor up and down that list
+when enter is pressed again, that option replaces the whole list
+
+should we allow navigating into a particular option on the list,
+and beginning a 'subtransertion' inside that element?
+in other words, if we descended into an element, enter would
+not pick the surrounding list element, but rather spawn a new
+menu in the hole that was selected.
+
+symbolically:
+take transformation rules whose lhs is hole of appropriate type
+create list of rhs templates
+|#
+#; '(selection-lists
+     ((pattern
+       (⋱ (▹ (sort expr) As ... / ⊙)))
+      (selection-list
+       (▹▹ ((sort expr) As ... / 0))
+       ((sort expr) As ... / (app ((sort expr) / ⊙) ((sort expr) / ⊙)))
+       ((sort expr) As ... / (λ (((sort pat) / ⊙)) ((sort expr) / ⊙)))
+       ((sort expr) As ... / (var ((sort char) / ⊙)))))
+     
+     ((pattern
+       (⋱ (▹ (sort pat) As ... / ⊙)))
+      (selection-list
+       ((sort pat) As ... / (var ((sort char) / ⊙)))))
+     )
+
+
+
 ; project cursor and sort info for holes
 (define (project stx)
   (define @ project)
@@ -315,6 +380,10 @@
 (big-bang initial-state
   [on-key
    (λ (state key)
+     (set! state
+           (match state
+             [(hash-table ('stx stx))
+              (hash-set state 'stx (write-in-envs stx))]))
      (match state
        [(hash-table ('stx stx))
         (displayln key)
