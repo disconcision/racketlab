@@ -1,7 +1,9 @@
 #lang racket
 
-(require "../projects/fructerm/fructerm.rkt")
-(require "write-in-envs.rkt")
+(require "../projects/fructerm/fructerm.rkt"
+         "write-in-envs.rkt"
+         "f-match.rkt")
+
 
 ; a grammar
 
@@ -246,6 +248,10 @@
        ['nav
         (match key
           ; meta keys
+          #;["q"
+             (let R ([x stx])
+               (match x
+                 [`(p/ ,(hash-table ))]))]
           ["\r" (define my-transform
                   '([(⋱ (▹ (sort char) / ⊙))
                      0]))
