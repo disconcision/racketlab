@@ -2,6 +2,8 @@
 
 (provide write-in-envs)
 
+(require "f-match.rkt")
+
 (define p1
   '(◇
     (p/
@@ -40,42 +42,39 @@
 
 (define (write-in-envs stx)
   (define W (curry write-in-envs))
-  (match stx
+  (f/match stx
     
-    [`(◇ (p/ ,anns ,prog))
-     `(◇ ,(W `(p/ ,(hash-set anns 'in-scope '()) ,prog)))]
+    [`(◇ ,(anns ... / prog))
+     `(◇ ,(W (('in-scope '()) anns ... / prog)))]
 
-    [`(p/ ,anns ⊙)
-     `(p/ ,anns ⊙)]
-
-    [`(p/ ,(and top-hash (hash-table ('in-scope env)))
-          (var (p/ ,var-anns ,var-name)))
-     `(p/ ,top-hash
-          (var (p/ ,(hash-set var-anns 'in-scope env) ,var-name)))]
-
-    [`(p/ ,(and top-hash (hash-table ('in-scope env)))
-          (λ ((p/ ,a ⊙))
-            (p/ ,body-anns
-                ,body)))
-     `(p/ ,top-hash
-          (λ ((p/ ,a ⊙))
-            ,(W `(p/ ,(hash-set body-anns 'in-scope env)
-                     ,body))))]
+    [(anns ... / '⊙)
+     (anns ... / '⊙)]
     
-    [`(p/ ,(and top-hash (hash-table ('in-scope env)))
-          (λ ((p/ ,a (var (p/ ,b ,id))))
-            (p/ ,body-anns
-                ,body)))
-     `(p/ ,top-hash
-          (λ ((p/ ,a (var (p/ ,b ,id))))
-            ,(W `(p/ ,(hash-set body-anns 'in-scope `(,id ,@env))
-                     ,body))))]
-    
-    [`(p/ ,(and top-hash (hash-table ('in-scope env)))
-          (app (p/ ,a ,f-expr)
-               (p/ ,b ,a-expr)))
-     `(p/ ,top-hash
-          (app ,(W `(p/ ,(hash-set a 'in-scope env) ,f-expr))
-               ,(W `(p/ ,(hash-set b 'in-scope env) ,a-expr))))]))
+    [(('in-scope env) top-rest ... /
+                      `(λ (,(a ... / `(var ,(b ... / id))))
+                         ,(body-anns ... / body)))
+     (('in-scope env) top-rest ... /
+                      `(λ (,(a ... / `(var ,(b ... / id))))
+                         ,(W ( ('in-scope `(,id ,@env)) body-anns ... / body))))]
+
+    [(('in-scope env) top-rest ... /
+                      `(λ (,(a ... / '⊙))
+                         ,(body-anns ... / body)))
+     (('in-scope env) top-rest ... /
+                      `(λ (,(a ... / '⊙))
+                         ,(W (body-anns ... / body))))]
+
+    [(('in-scope env) top-rest ... /
+                      `(var ,(a ... / a-expr)))
+     (('in-scope env) top-rest ... /
+                      `(var ,(W (('in-scope env) a ... / a-expr))))]
+
+    [(('in-scope env) top-rest ... /
+                      `(app ,(a ... / f-expr)
+                            ,(b ... / a-expr)))
+     (('in-scope env) top-rest ... /
+                      `(app ,(W (('in-scope env) a ... / f-expr))
+                            ,(W (('in-scope env) b ... / a-expr))))]
+    ))
 
 
