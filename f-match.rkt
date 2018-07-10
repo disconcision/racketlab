@@ -1,7 +1,7 @@
 #lang racket
 
 
-(provide f/match phash phash-plus)
+(provide f/match phash phash-plus p⋱)
 
 
 ; still need to do ellipses patterns
@@ -28,7 +28,7 @@
 
 (define-syntax (f/match stx)
   (syntax-case stx (/)
-    [(g/match source pairs ...)
+    [(f/match source pairs ...)
      (let ([new-pairs (map rewrite-pairs (syntax->datum #'(pairs ...)))])
        (with-syntax ([(newest-pairs ...) (datum->syntax stx new-pairs)])
          #'(match source newest-pairs ...)))]))

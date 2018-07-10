@@ -248,10 +248,17 @@
        ['nav
         (match key
           ; meta keys
-          #;["q"
-             (let R ([x stx])
-               (match x
-                 [`(p/ ,(hash-table ))]))]
+          #; [⋱
+              (▹ (sort expr) As ...
+                 / ⊙)
+              (▹ (sort expr) As ...
+                 / 0)]
+          ["q" (hash-set state 'stx
+                         (f/match stx
+                           [(c ⋱ (▹ ('sort expr) As ... / ⊙))
+                            (c ⋱ (▹ ('sort expr) As ... / 0))]
+                           [x
+                            x]))]
           ["\r" (define my-transform
                   '([(⋱ (▹ (sort char) / ⊙))
                      0]))
