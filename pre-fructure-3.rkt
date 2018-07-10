@@ -85,116 +85,116 @@
 ; map from keys to functions
 (define keymap
   '(["1" ([⋱
-           (▹ (sort expr) As ...
-              / ⊙)
-           (▹ (sort expr) As ...
-              / 0)])]
+            (▹ (sort expr) As ...
+               / ⊙)
+            (▹ (sort expr) As ...
+               / 0)])]
     ["2" ([⋱
-           (▹ (sort expr) As ...
-              / ⊙)
-           ((sort expr) As ...
-                        / (app (▹ (sort expr) / ⊙)
-                               ((sort expr) / ⊙)))])]
+            (▹ (sort expr) As ...
+               / ⊙)
+            ((sort expr) As ...
+                         / (app (▹ (sort expr) / ⊙)
+                                ((sort expr) / ⊙)))])]
     ["3" ([⋱
-           (▹ (sort expr) As ...
-              / ⊙)
-           ((sort expr) As ...
-                        / (λ ((▹ (sort pat) / ⊙))
-                            ((sort expr) / ⊙)))])]
+            (▹ (sort expr) As ...
+               / ⊙)
+            ((sort expr) As ...
+                         / (λ ((▹ (sort pat) / ⊙))
+                             ((sort expr) / ⊙)))])]
     ["4" ([⋱
-           (▹ (sort pat) As ...
-              / ⊙)
-           ((sort pat) As ...
-                       / (var (▹ (sort char) / ⊙)))]
+            (▹ (sort pat) As ...
+               / ⊙)
+            ((sort pat) As ...
+                        / (var (▹ (sort char) / ⊙)))]
           [⋱
-           (▹ (sort expr) As ...
-              / ⊙)
-           ((sort expr) As ...
-                        / (var (▹ (sort char) / ⊙)))])]
+            (▹ (sort expr) As ...
+               / ⊙)
+            ((sort expr) As ...
+                         / (var (▹ (sort char) / ⊙)))])]
     ["up" ([(◇ a ... (▹ As ... / b) c ...)
             (◇ a ... (▹ As ... / b) c ...)]
            [⋱
-            (As ...
-             / (λ ((▹ Bs ... / a)) b))
-            (▹ As ...
-               / (λ ((Bs ... / a)) b))]
+             (As ...
+              / (λ ((▹ Bs ... / a)) b))
+             (▹ As ...
+                / (λ ((Bs ... / a)) b))]
            [⋱
-            (As ... /
-                (a ... (▹ Bs ... / b) c ...))
-            (▹ As ... /
-               (a ... (Bs ... / b) c ...))]
+             (As ... /
+                 (a ... (▹ Bs ... / b) c ...))
+             (▹ As ... /
+                (a ... (Bs ... / b) c ...))]
            )]
     ["down" ([⋱
-              (▹ As ... / ⊙)
-              (▹ As ... / ⊙)]
+               (▹ As ... / ⊙)
+               (▹ As ... / ⊙)]
              [⋱
-              (▹ As ... / 0)
-              (▹ As ... / 0)]
+               (▹ As ... / 0)
+               (▹ As ... / 0)]
              [⋱
-              (▹ As ... /
-                 (var (Bs ... / b)))
-              (As ... /
-                  (var (▹ Bs ... / b)))]
+               (▹ As ... /
+                  (var (Bs ... / b)))
+               (As ... /
+                   (var (▹ Bs ... / b)))]
              [⋱
-              (▹ As ... /
-                 (app (Bs ... / a) b))
-              (As ... /
-                  (app (▹ Bs ... / a) b))]
+               (▹ As ... /
+                  (app (Bs ... / a) b))
+               (As ... /
+                   (app (▹ Bs ... / a) b))]
              [⋱
-              (▹ As ...
-                 / (λ ((Bs ... / a)) b))
-              (As ...
-               / (λ ((▹ Bs ... / a)) b))]
+               (▹ As ...
+                  / (λ ((Bs ... / a)) b))
+               (As ...
+                / (λ ((▹ Bs ... / a)) b))]
              )]
     ["left" ([⋱
-              (◇ (▹ As ... / c))
-              (◇ (▹ As ... / c))]
+               (◇ (▹ As ... / c))
+               (◇ (▹ As ... / c))]
              [⋱
-              (var (▹ As ... / c))
-              (var (▹ As ... / c))]
+               (var (▹ As ... / c))
+               (var (▹ As ... / c))]
              [⋱
-              (app (▹ As ... / c) d ...)
-              (app (▹ As ... / c) d ...)]
+               (app (▹ As ... / c) d ...)
+               (app (▹ As ... / c) d ...)]
              [⋱
-              (λ ((▹ Bs ... / a)) b)
-              (λ ((▹ Bs ... / a)) b)]
+               (λ ((▹ Bs ... / a)) b)
+               (λ ((▹ Bs ... / a)) b)]
              [⋱
-              (λ ((As ... / a)) (▹ Bs ... / b))
-              (λ ((▹ As ... / a)) (Bs ... / b))]
+               (λ ((As ... / a)) (▹ Bs ... / b))
+               (λ ((▹ As ... / a)) (Bs ... / b))]
              [⋱
-              ((▹ As ... / c) d ...)
-              ((▹ As ... / c) d ...)]
+               ((▹ As ... / c) d ...)
+               ((▹ As ... / c) d ...)]
              [⋱
-              (a ... (As ... / b) (▹ Bs ... / c) d ...)
-              (a ... (▹ As ... / b) (Bs ... / c) d ...)]
+               (a ... (As ... / b) (▹ Bs ... / c) d ...)
+               (a ... (▹ As ... / b) (Bs ... / c) d ...)]
              )]
     ["right" ([⋱
-               (λ ((▹ As ... / a)) (Bs ... / b))
-               (λ ((As ... / a)) (▹ Bs ... / b))]
+                (λ ((▹ As ... / a)) (Bs ... / b))
+                (λ ((As ... / a)) (▹ Bs ... / b))]
               [⋱
-               (a ... (▹ As ... / b) (Bs ... / c) d ...)
-               (a ... (As ... / b) (▹ Bs ... / c) d ...)]
+                (a ... (▹ As ... / b) (Bs ... / c) d ...)
+                (a ... (As ... / b) (▹ Bs ... / c) d ...)]
               )]
     ["x" ([⋱
-           (▹ As ...
-              / 0)
-           (▹ As ...
-              / ⊙)]
+            (▹ As ...
+               / 0)
+            (▹ As ...
+               / ⊙)]
           [⋱
-           (▹ As ...
-              / (var a))
-           (▹ As ...
-              / ⊙)]
+            (▹ As ...
+               / (var a))
+            (▹ As ...
+               / ⊙)]
           [⋱
-           (▹ As ...
-              / (app a b))
-           (▹ As ...
-              / ⊙)]
+            (▹ As ...
+               / (app a b))
+            (▹ As ...
+               / ⊙)]
           [⋱
-           (▹ As ...
-              / (λ (a) b))
-           (▹ As ...
-              / ⊙)]
+            (▹ As ...
+               / (λ (a) b))
+            (▹ As ...
+               / ⊙)]
           )]))
 
 
@@ -249,16 +249,24 @@
         (match key
           ; meta keys
           #; [⋱
-              (▹ (sort expr) As ...
-                 / ⊙)
-              (▹ (sort expr) As ...
-                 / 0)]
-          ["q" (hash-set state 'stx
-                         (f/match stx
-                           [(c ⋱ (▹ ('sort expr) As ... / ⊙))
-                            (c ⋱ (▹ ('sort expr) As ... / 0))]
-                           [x
-                            x]))]
+               (▹ (sort expr) As ...
+                  / ⊙)
+               (▹ (sort expr) As ...
+                  / 0)]
+          ["q"
+           (define my-desugar
+             (compose (curry restructure literals #hash()) desugar))
+           (hash-set* state
+                      'mode 'menu
+                      'stx (f/match stx
+                             [(c ⋱ (▹ ('sort expr) As ... / ⊙))
+                              (c ⋱ (('selection-list
+                                     (map my-desugar `((▹ (sort expr) / 0)
+                                                       ((sort expr) / (app ((sort expr) / ⊙) ((sort expr) / ⊙)))
+                                                       ((sort expr) / (λ (((sort pat) / ⊙)) ((sort expr) / ⊙)))
+                                                       ((sort expr) / (var ((sort char) / ⊙))))))
+                                    ('sort expr) As ... / ⊙))]
+                             ))]
           ["\r" (define my-transform
                   '([(⋱ (▹ (sort char) / ⊙))
                      0]))
@@ -348,20 +356,6 @@ symbolically:
 take transformation rules whose lhs is hole of appropriate type
 create list of rhs templates
 |#
-#; '(selection-lists
-     ((pattern
-       (⋱ (▹ (sort expr) As ... / ⊙)))
-      (selection-list
-       (▹▹ ((sort expr) As ... / 0))
-       ((sort expr) As ... / (app ((sort expr) / ⊙) ((sort expr) / ⊙)))
-       ((sort expr) As ... / (λ (((sort pat) / ⊙)) ((sort expr) / ⊙)))
-       ((sort expr) As ... / (var ((sort char) / ⊙)))))
-     
-     ((pattern
-       (⋱ (▹ (sort pat) As ... / ⊙)))
-      (selection-list
-       ((sort pat) As ... / (var ((sort char) / ⊙)))))
-     )
 
 
 

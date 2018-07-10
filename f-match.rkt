@@ -83,7 +83,8 @@
                                    ([r rest-pat])
                            (match r
                              [`(,k ,v) (hash-set acc k v)]))
-                         (hash newest-anns ...))))])))
+                         (hash newest-anns ...)
+                         #:combine/key (λ (k v1 v2) (if (equal? v1 v2) v1 v2 #;(error (string-append "hash error" (~v v1) " " (~v v2))))))))])))
 
 (module+ test
   (require rackunit)

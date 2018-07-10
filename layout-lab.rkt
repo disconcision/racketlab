@@ -1,6 +1,7 @@
 #lang racket
 (require 2htdp/image)
-(require rackunit)
+(require rackunit
+         "f-match.rkt")
 
 
 (provide render)
@@ -85,8 +86,19 @@
 
 #| render : stx → image |#
 (define (render fruct)
-  (match fruct
+  (f/match fruct
     [`(◇ ,a) (render a)]
+
+    [(('selection-list options)
+      ('sort expr) As ... / ⊙)
+     (apply above
+            (text (symbol->string '▹⊙) 24 selection-color)
+            (text "selection-list" 10 selection-color)
+            (text (string-upcase (symbol->string 'expr)) 8 (make-color 200 0 0))
+            (map render options))]
+    #;[`(selection-list ,options ...)
+     (apply above (text "selection-list" 10 selection-color)
+            (map render options))]
 
     [`(p/ ,(hash-table ('▹ _) ('sort sort)) 0)
      (above (text (symbol->string '▹0) 24 selection-color)
