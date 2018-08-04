@@ -90,26 +90,34 @@
     [`(◇ ,a) (render a)]
 
     [(('selection-list options)
-      ('sort expr) As ... / ⊙)
+       As ... / '⊙)
      (apply above
             (text (symbol->string '▹⊙) 24 selection-color)
             (text "selection-list" 10 selection-color)
             (text (string-upcase (symbol->string 'expr)) 8 (make-color 200 0 0))
             (map render options))]
     #;[`(selection-list ,options ...)
-     (apply above (text "selection-list" 10 selection-color)
-            (map render options))]
+       (apply above (text "selection-list" 10 selection-color)
+              (map render options))]
 
-    [`(p/ ,(hash-table ('▹ _) ('sort sort)) 0)
+    
+    [(string-list / '⊙)
+     (apply above (map render string-list))]
+    
+    [(▹ sort / 0)
      (above (text (symbol->string '▹0) 24 selection-color)
             (text (string-upcase (symbol->string sort)) 8 (make-color 200 0 0)))]
-    [`(p/ ,_ 0)
+    [(♦ sort / 0)
+     (above (text (symbol->string '♦0) 24 selection-color)
+            (text (string-upcase (symbol->string sort)) 8 (make-color 0 200 0)))]
+    
+    [(anns ... / 0)
      (text "0" 18 datum-color)]
     
-    [`(p/ ,(hash-table ('▹ _) ('sort sort)) ⊙)
+    [(▹ sort / '⊙)
      (above (text (symbol->string '▹⊙) 24 selection-color)
             (text (string-upcase (symbol->string sort)) 8 (make-color 200 0 0)))]
-    [`(p/ ,_ ⊙)
+    [(anns ... / '⊙)
      (text (symbol->string '⊙) 18 hole-color)]
 
     ; temporary free text form
@@ -123,14 +131,16 @@
     [`(p/ ,(hash-table ('sort sort)) (var ,a))
      (render-var var-color #f sort `(var ,a))]
     
-    [`(p/ ,(hash-table ('▹ _)) (app ,f ,as ...))
+    [(▹ sort / `(app ,f ,as ...))
      (render-app selection-color #t `(app ,f ,@as))]
-    [`(p/ ,_ (app ,f ,as ...))
+    [(anns ... / `(app ,f ,as ...))
      (render-app app-color #f `(app ,f ,@as))]
 
-    [`(p/ ,(hash-table ('▹ _)) (λ (,a) ,b))
+    #; '(p/ #hash((sort . expr))
+            (λ ((p/ #hash((sort . pat) (▹ . ▹)) ⊙)) (p/ #hash((sort . expr)) ⊙)))
+    [(▹ sort / `(λ (,a) ,b))
      (render-λ selection-color #t `(λ (,a) ,b))]
-    [`(p/ ,_ (λ (,a) ,b))
+    [(anns ... / `(λ (,a) ,b))
      (render-λ lambda-color #f `(λ (,a) ,b))]
 
     #;[`(p/ ,anns ,stx)

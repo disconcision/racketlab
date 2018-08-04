@@ -6,7 +6,7 @@
 
 ; still need to do ellipses patterns
 
-(require (for-syntax racket/match)
+(require (for-syntax racket/match racket/list)
          racket/hash)
 
 (define-for-syntax (rewrite-p/ stx)
@@ -42,7 +42,7 @@
               (for/list ([ann (syntax->datum #'(anns ...))])
                 (if (symbol? ann)
                     `(,(list 'quote ann) ,ann)
-                    ann))])
+                    `(,(first ann) . ,(rewrite-p/ (rest ann)))#;ann))]) ; kind of a hack (also see below) for selection-list
          (with-syntax ([(newest-anns ...) (datum->syntax stx new-anns)])
            #'(hash-table newest-anns ...)))]))
   (λ (stx)
@@ -53,7 +53,7 @@
                      (for/list ([ann (syntax->datum #'(anns ...))])
                        (if (symbol? ann)
                            `(,(list 'quote ann) ,ann)
-                           ann)))])
+                           `(,(first ann) . ,(rewrite-p/ (rest ann))))))]) ; hack see above
          (with-syntax ([(newest-anns ...) (datum->syntax stx new-anns)])
            #'(hash newest-anns ...)))])))
 
@@ -126,6 +126,43 @@
                   #hash((sort . pat) (> . >))
                   (p/ #hash((b . 8)) 2)))
 
+  ; verify this test case is actually right.....
+  (check-equal? (f/match '(p/
+                           #hash((in-scope . ())
+                                 (selection-list
+                                  .
+                                  ((p/ #hash((sort . expr) (♦ . ♦)) 0)
+                                   (p/
+                                    #hash((sort . expr))
+                                    (app (p/ #hash((sort . expr)) ⊙) (p/ #hash((sort . expr)) ⊙)))
+                                   (p/
+                                    #hash((sort . expr))
+                                    (λ ((p/ #hash((sort . pat)) ⊙)) (p/ #hash((sort . expr)) ⊙)))
+                                   (p/ #hash((sort . expr)) (var (p/ #hash((sort . char)) ⊙)))))
+                                 (sort . expr)
+                                 (▹ . ▹))
+                           ⊙)
+                  [(▹ ('selection-list `(,xs ... ,(♦ anns ... / whatever) ,( anns2 ... / w2) ,ws ...))
+                      / s)
+                   (▹ ('selection-list `(,@xs ,(anns ... / whatever) ,(♦ anns2 ... / w2) ,@ws))
+                      / s)]
+                  #;[(▹ ('selection-list `(,xs ... (p/ ,(hash-table (♦  ♦) y-rest ...) ,y) (p/ ,(hash-table z-rest ...) ,z) ,ws ...))
+                        / s)
+                     0])
+                '(p/
+                   #hash((selection-list
+                          .
+                          ((p/ #hash((sort . expr)) 0)
+                           (p/
+                            #hash((sort . expr) (♦ . ♦))
+                            (app (p/ #hash((sort . expr)) ⊙) (p/ #hash((sort . expr)) ⊙)))
+                           (p/
+                            #hash((sort . expr))
+                            (λ ((p/ #hash((sort . pat)) ⊙)) (p/ #hash((sort . expr)) ⊙)))
+                           (p/ #hash((sort . expr)) (var (p/ #hash((sort . char)) ⊙)))))
+                         (▹ . ▹))
+                   ⊙))
+
 
   ; containment pattern tests
 
@@ -133,6 +170,11 @@
                   [(c ⋱ `(1 ,a))
                    (c ⋱ `(2 ,a))])
                 '(0 0 ((2 7) 0 0)))
+
+  (check-equal? (f/match '(p/ #hash((in-scope . ()) (sort . expr) (▹ . ▹)) 0)
+                  [(c ⋱ (▹ As ... / 0))
+                   (c ⋱ (▹ As ... / '⊙))])
+                '(p/ #hash((in-scope . ()) (sort . expr) (▹ . ▹)) ⊙))
   
   )
 

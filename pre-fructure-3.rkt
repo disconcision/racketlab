@@ -71,8 +71,8 @@
         (app . ())
         (λ . ())
         (let . ())
-        #;(pair . ())
-        #;(q . ()) ; TEMPORARY!!!
+        (|| . ()) ; not sure about this one....
+        (♦ . ())
         (◇ . ())
         (▹ . ())
         (▹▹ . ())
@@ -245,6 +245,20 @@
            (hash-set*
             state
             'stx inserted-result)])]
+       ['menu
+        (match key
+          ["down"
+           (hash-set* state
+                      'stx (f/match stx
+                             [(ctx ⋱ (▹ ('selection-list `(,xs ... ,(♦ y-anns ... / y) ,(z-anns ... / z) ,ws ...)) ; note missing rest-anns ...
+                                        / s)
+                                   )
+                              (ctx ⋱ (▹ ('selection-list `(,@xs ,(y-anns ... / y) ,(♦ z-anns ... / z) ,@ws)) ; note missing as above
+                                        / s)
+                                   )
+                              ]
+                             ))
+           ])]
        ['nav
         (match key
           ; meta keys
@@ -260,31 +274,39 @@
                       'mode 'menu
                       'stx (f/match stx
                              [(c ⋱ (▹ ('sort expr) As ... / ⊙))
-                              (c ⋱ (('selection-list
-                                     (map my-desugar `((▹ (sort expr) / 0)
-                                                       ((sort expr) / (app ((sort expr) / ⊙) ((sort expr) / ⊙)))
-                                                       ((sort expr) / (λ (((sort pat) / ⊙)) ((sort expr) / ⊙)))
-                                                       ((sort expr) / (var ((sort char) / ⊙))))))
-                                    ('sort expr) As ... / ⊙))]
+                              (c ⋱ (▹ ('selection-list
+                                       (map my-desugar `((♦ (sort expr) / 0) 
+                                                         ((sort expr) / (app ((sort expr) / ⊙) ((sort expr) / ⊙)))
+                                                         ((sort expr) / (λ (((sort pat) / ⊙)) ((sort expr) / ⊙)))
+                                                         ((sort expr) / (var ((sort char) / ⊙))))))
+                                      ('sort expr) As ... / ⊙))]
                              ))]
-          ["\r" (define my-transform
-                  '([(⋱ (▹ (sort char) / ⊙))
-                     0]))
-                (define my-transform2
-                  `([⋱ (▹ (sort char) / ⊙)
-                       (▹ (sort char) / ||)]))
-                (cond [(equal? 0 (runtime-match literals my-transform stx))
-                       (begin (println "yeah")
-                              (hash-set*
-                               state
-                               'stx (runtime-match (hash-set literals '|| '_)
-                                                   my-transform2
-                                                   stx)
-                               'mode 'text-entry))]
-                      [else
-                       (begin (println "nah")
-                              state)]                  
-                      )]
+          ["\r"
+           (define (select-first stx)
+             (f/match stx
+               [`(,x ,xs ...)
+                `((▹ ,x) ,@xs)]))
+           (f/match stx
+             [(c ⋱ (▹ (sort char) in-scope as ... / '⊙))
+              (c ⋱ (('string-list (select-first in-scope)) (sort char) in-scope as ... / '⊙))])]
+          #;["\r" (define my-transform
+                    '([(⋱ (▹ (sort char) / ⊙))
+                       0]))
+                  (define my-transform2
+                    `([⋱ (▹ (sort char) / ⊙)
+                         (▹ (sort char) / ||)]))
+                  (cond [(equal? 0 (runtime-match literals my-transform stx))
+                         (begin (println "yeah")
+                                (hash-set*
+                                 state
+                                 'stx (runtime-match (hash-set literals '|| '_)
+                                                     my-transform2
+                                                     stx)
+                                 'mode 'text-entry))]
+                        [else
+                         (begin (println "nah")
+                                state)]                  
+                        )]
           ["f1" (hash-set initial-state 'stx save-state-1)]
           ["h"  (hash-set*
                  state

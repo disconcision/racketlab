@@ -49,6 +49,9 @@
 
     [(anns ... / '⊙)
      (anns ... / '⊙)]
+
+    [(anns ... / 0)
+     (anns ... / 0)]
     
     [(('in-scope env) top-rest ... /
                       `(λ (,(a ... / `(var ,(b ... / id))))
