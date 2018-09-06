@@ -90,7 +90,7 @@
     [`(◇ ,a) (render a)]
 
     [(('selection-list options)
-       As ... / '⊙)
+      As ... / '⊙)
      (apply above
             (text (symbol->string '▹⊙) 24 selection-color)
             (text "selection-list" 10 selection-color)
@@ -107,6 +107,8 @@
     [(▹ sort / 0)
      (above (text (symbol->string '▹0) 24 selection-color)
             (text (string-upcase (symbol->string sort)) 8 (make-color 200 0 0)))]
+
+    ; replace this with > subselector?
     [(♦ sort / 0)
      (above (text (symbol->string '♦0) 24 selection-color)
             (text (string-upcase (symbol->string sort)) 8 (make-color 0 200 0)))]
@@ -126,15 +128,40 @@
     [`(p/ ,(hash-table ('sort 'char)) ,(? symbol? s))
      (text (symbol->string s) 24 datum-color)]
 
-    [`(p/ ,(hash-table ('▹ _) ('sort sort)) (var ,a))
+    [(▹ sort / `(var ,a))
      (render-var selection-color #t sort `(var ,a))]
-    [`(p/ ,(hash-table ('sort sort)) (var ,a))
+    [(sort / `(var ,a))
      (render-var var-color #f sort `(var ,a))]
     
     [(▹ sort / `(app ,f ,as ...))
      (render-app selection-color #t `(app ,f ,@as))]
     [(anns ... / `(app ,f ,as ...))
      (render-app app-color #f `(app ,f ,@as))]
+
+    ; note: need seperate view modes to make +-affordance visible on on the form
+    ; WHICH CONTAINS the currently selected form as part of a variadic list,
+    ; OR when selecting a form with an empty variadic list.
+
+    ; SO
+    #|
+
+; smooth perceptual model:
+(▹ (⋱1 (symbol)))
+(▹ (symbol +))
+(symbol (▹ ⊙) +)
+(symbol a (▹ ⊙) +)
+(symbol a b (▹ ⊙) +)
+(symbol a b s (▹ ⊙) +)
+(⋱ (symbol a b s ) (▹ whatever))
+
+(⋱ abs (▹ whatever)) ; view option
+
+; drag model
+; when hovered over in drag mode, symbols look like this?:
+;  (symbol + a + b + s +)
+;  (symbol .a.b.s.) ; maybe try to render it more like this
+
+|#
 
     #; '(p/ #hash((sort . expr))
             (λ ((p/ #hash((sort . pat) (▹ . ▹)) ⊙)) (p/ #hash((sort . expr)) ⊙)))

@@ -85,44 +85,30 @@
 ; map from keys to functions
 (define keymap
   '(["1" ([⋱
-            (▹ (sort expr) As ...
-               / ⊙)
-            (▹ (sort expr) As ...
-               / 0)])]
+            (▹ (sort expr) As ... / ⊙)
+            (▹ (sort expr) As ... / 0)])]
     ["2" ([⋱
-            (▹ (sort expr) As ...
-               / ⊙)
-            ((sort expr) As ...
-                         / (app (▹ (sort expr) / ⊙)
-                                ((sort expr) / ⊙)))])]
+            (▹ (sort expr) As ... / ⊙)
+            ((sort expr) As ... / (app (▹ (sort expr) / ⊙)
+                                       ((sort expr) / ⊙)))])]
     ["3" ([⋱
-            (▹ (sort expr) As ...
-               / ⊙)
-            ((sort expr) As ...
-                         / (λ ((▹ (sort pat) / ⊙))
-                             ((sort expr) / ⊙)))])]
+            (▹ (sort expr) As ...  / ⊙)
+            ((sort expr) As ... / (λ ((▹ (sort pat) / ⊙))
+                                    ((sort expr) / ⊙)))])]
     ["4" ([⋱
-            (▹ (sort pat) As ...
-               / ⊙)
-            ((sort pat) As ...
-                        / (var (▹ (sort char) / ⊙)))]
+            (▹ (sort pat) As ... / ⊙)
+            ((sort pat) As ... / (var (▹ (sort char) / ⊙)))]
           [⋱
-            (▹ (sort expr) As ...
-               / ⊙)
-            ((sort expr) As ...
-                         / (var (▹ (sort char) / ⊙)))])]
+            (▹ (sort expr) As ...  / ⊙)
+            ((sort expr) As ... / (var (▹ (sort char) / ⊙)))])]
     ["up" ([(◇ a ... (▹ As ... / b) c ...)
             (◇ a ... (▹ As ... / b) c ...)]
            [⋱
-             (As ...
-              / (λ ((▹ Bs ... / a)) b))
-             (▹ As ...
-                / (λ ((Bs ... / a)) b))]
+             (As ... / (λ ((▹ Bs ... / a)) b))
+             (▹ As ... / (λ ((Bs ... / a)) b))]
            [⋱
-             (As ... /
-                 (a ... (▹ Bs ... / b) c ...))
-             (▹ As ... /
-                (a ... (Bs ... / b) c ...))]
+             (As ... / (a ... (▹ Bs ... / b) c ...))
+             (▹ As ... / (a ... (Bs ... / b) c ...))]
            )]
     ["down" ([⋱
                (▹ As ... / ⊙)
@@ -131,20 +117,14 @@
                (▹ As ... / 0)
                (▹ As ... / 0)]
              [⋱
-               (▹ As ... /
-                  (var (Bs ... / b)))
-               (As ... /
-                   (var (▹ Bs ... / b)))]
+               (▹ As ... / (var (Bs ... / b)))
+               (As ... / (var (▹ Bs ... / b)))]
              [⋱
-               (▹ As ... /
-                  (app (Bs ... / a) b))
-               (As ... /
-                   (app (▹ Bs ... / a) b))]
+               (▹ As ... / (app (Bs ... / a) b))
+               (As ... / (app (▹ Bs ... / a) b))]
              [⋱
-               (▹ As ...
-                  / (λ ((Bs ... / a)) b))
-               (As ...
-                / (λ ((▹ Bs ... / a)) b))]
+               (▹ As ... / (λ ((Bs ... / a)) b))
+               (As ...  / (λ ((▹ Bs ... / a)) b))]
              )]
     ["left" ([⋱
                (◇ (▹ As ... / c))
@@ -176,25 +156,17 @@
                 (a ... (As ... / b) (▹ Bs ... / c) d ...)]
               )]
     ["x" ([⋱
-            (▹ As ...
-               / 0)
-            (▹ As ...
-               / ⊙)]
+            (▹ As ... / 0)
+            (▹ As ... / ⊙)]
           [⋱
-            (▹ As ...
-               / (var a))
-            (▹ As ...
-               / ⊙)]
+            (▹ As ... / (var a))
+            (▹ As ... / ⊙)]
           [⋱
-            (▹ As ...
-               / (app a b))
-            (▹ As ...
-               / ⊙)]
+            (▹ As ... / (app a b))
+            (▹ As ... / ⊙)]
           [⋱
-            (▹ As ...
-               / (λ (a) b))
-            (▹ As ...
-               / ⊙)]
+            (▹ As ... / (λ (a) b))
+            (▹ As ... / ⊙)]
           )]))
 
 
@@ -219,6 +191,7 @@
      (println `(mode ,mode))
      (match mode
        ['text-entry
+        ; MY LOVE FOR YOU IS LIKE A TRUCK
         (match key
           ["\r"
            (hash-set*
@@ -251,6 +224,7 @@
            (hash-set* state
                       'stx (f/match stx
                              [(ctx ⋱ (▹ ('selection-list `(,xs ... ,(♦ y-anns ... / y) ,(z-anns ... / z) ,ws ...)) ; note missing rest-anns ...
+                                        ; above is bug/incomplete-implementation in f-match maybe
                                         / s)
                                    )
                               (ctx ⋱ (▹ ('selection-list `(,@xs ,(y-anns ... / y) ,(♦ z-anns ... / z) ,@ws)) ; note missing as above
@@ -267,7 +241,8 @@
                   / ⊙)
                (▹ (sort expr) As ...
                   / 0)]
-          ["q"
+          ["q" ; think ENTER (edit mode)
+           ; here we initially just want to replace a hole with a menu of fill options
            (define my-desugar
              (compose (curry restructure literals #hash()) desugar))
            (hash-set* state
