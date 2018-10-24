@@ -2,24 +2,24 @@
 
 (provide write-in-envs)
 
-(require "f-match.rkt")
+(require "../projects/fructerm/f-match.rkt")
 
 (define p1
   '(◇
-    (p/
-     #hash((sort . expr))
-     (λ ((p/ #hash((sort . pat)) ⊙)) (p/ #hash((sort . expr) (▹ . ▹)) ⊙)))))
+     (p/
+      #hash((sort . expr))
+      (λ ((p/ #hash((sort . pat)) ⊙)) (p/ #hash((sort . expr) (▹ . ▹)) ⊙)))))
 
 
 (define p2
   '(◇
-    (p/ #hash((sort . expr))
-        (λ ((p/ #hash((sort . pat) (▹ . ▹)) (var (p/ #hash((sort . char)) name))))
-          (p/ #hash((sort . expr))
-              (λ ((p/ #hash((sort . pat) (▹ . ▹)) (var (p/ #hash((sort . char)) name2))))
-                (p/ #hash((sort . expr))
-                    (app (p/ #hash((sort . expr) (▹ . ▹)) ⊙)
-                         (p/ #hash((sort . expr)) ⊙)))))))))
+     (p/ #hash((sort . expr))
+         (λ ((p/ #hash((sort . pat) (▹ . ▹)) (var (p/ #hash((sort . char)) name))))
+           (p/ #hash((sort . expr))
+               (λ ((p/ #hash((sort . pat) (▹ . ▹)) (var (p/ #hash((sort . char)) name2))))
+                 (p/ #hash((sort . expr))
+                     (app (p/ #hash((sort . expr) (▹ . ▹)) ⊙)
+                          (p/ #hash((sort . expr)) ⊙)))))))))
 
 
 (module+ test
@@ -39,6 +39,7 @@
 '(p/ #hash((in-scope . ()) (sort . expr))
      (λ ((p/ #hash((sort . pat) (▹ . ▹)) ⊙))
        (p/ #hash((sort . expr)) ⊙)))
+
 
 (define (write-in-envs stx)
   (define W (curry write-in-envs))
@@ -78,6 +79,8 @@
      (('in-scope env) top-rest ... /
                       `(app ,(W (('in-scope env) a ... / f-expr))
                             ,(W (('in-scope env) b ... / a-expr))))]
+
+    [_ (println stx) (error "error in write-in-envs")]
     ))
 
 
