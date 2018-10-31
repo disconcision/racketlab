@@ -88,13 +88,12 @@
 ; select ⊙... normally, but on transformation, clone it to the right
 ; another alternative: when ⊙... selected, ENTER expands it hole + ⊙...
 
-(define initial-state
-  #hash((stx . (◇ (p/ #hash((▹ . ▹) (sort . expr)) ⊙)))
-        ; (my-desugar '(◇ (▹ (sort expr) / ⊙)))
-        (mode . nav)
-        (transforms . ())
-        (messages . ("hello world"))))
 
+#hash((stx . (◇ (p/ #hash((▹ . ▹) (sort . expr)) ⊙)))
+      ; (my-desugar '(◇ (▹ (sort expr) / ⊙)))
+      (mode . nav)
+      (transforms . ())
+      (messages . ("hello world")))
 (define literals
   #hash((var . ())
         (app . ())
@@ -113,57 +112,131 @@
 (define my-desugar
   (compose (curry restructure literals #hash()) desugar))
 
+(define initial-state
+  (hash 'stx (my-desugar '(◇ (▹ (sort expr) / ⊙)))
+        'mode 'nav
+        'transforms '()
+        'messages '("hello world"))
+  )
 
 
-; map from keys to functions
+
+(struct -> (class props payload))
+
+(define (wrap⋱select mstx)
+  (for/list ([s mstx])
+    (match s
+      [`[,a ,b]
+       `[⋱ ,(select a) ,(select b)]])))
+
+(define (wrap⋱ mstx)
+  (match mstx
+    [`[,a ,b]
+     `[⋱ ,a ,b]]))
+
+(define (select mstx)
+  (match mstx
+    [`(,y ... / ,d ...)
+     `(▹ ,@y / ,@d)]))
+
+
+(define (make-constructor raw-rule)
+  `(compose->
+    ,(-> 'runtime
+         (set 'meta 'move-▹)
+         '([(c ⋱ (▹ ys ... / (d ⋱ (xs ... / ⊙))))
+            (c ⋱ (ys ... / (d ⋱ (▹ xs ... / ⊙))))]
+           [A A]))
+    ,(-> 'runtime
+         (set 'object 'constructor)
+         (wrap⋱select raw-rule))))
+
+(define make-destructor
+  make-constructor)
+
+(define identity->
+  (-> 'runtime
+      (set 'object)
+      '([A A])))
+
+(define (make-movement raw-rule)
+  (-> 'runtime
+      (set 'meta 'move-▹)
+      raw-rule))
+
+(define select-first-⊙
+  (curry runtime-match literals
+         '([(c ⋱ (▹ ys ... / (d ⋱ (xs ... / ⊙))))
+            (c ⋱ (ys ... / (d ⋱ (▹ xs ... / ⊙))))]
+           [A A])))
+
 (define keymap
-  '(["1" ([⋱
-            (▹ (sort expr) As ... / ⊙)
-            (▹ (sort expr) As ... / 0)])]
-    ["2" ([⋱
-            (▹ (sort expr) As ... / ⊙)
-            ((sort expr) As ... /
-                         (app (▹ (sort expr) / ⊙)
-                              ((sort expr) / ⊙)))])]
-    ["3" ([⋱
-            (▹ (sort expr) As ... / ⊙)
-            ((sort expr) As ... /
-                         (λ ((▹ (sort pat) / ⊙))
-                           ((sort expr) / ⊙)))])]
-    ["4" ([⋱
-            (▹ (sort pat) As ... / ⊙)
-            ((sort pat) As ... /
-                        (var (▹ (sort char) / ⊙)))]
-          [⋱
-            (▹ (sort expr) As ...  / ⊙)
-            ((sort expr) As ... / (var (▹ (sort char) / ⊙)))])]
-    ["up" ([(◇ a ... (▹ As ... / b) c ...)
+  ; map from keys to functions
+  (hash
+
+   ; constructors
+   
+   "1" (make-constructor
+        '([((sort expr) xs ... / ⊙)
+           ((sort expr) xs ... / 0)])
+        )
+   "2" (make-constructor
+        '([((sort expr) As ... / ⊙)
+           ((sort expr) As ... /
+                        (app ( (sort expr) / ⊙)
+                             ((sort expr) / ⊙)))]))
+   "3" (make-constructor
+        '([((sort expr) As ... / ⊙)
+           ((sort expr) As ... /
+                        (λ (((sort pat) / ⊙))
+                          ((sort expr) / ⊙)))]))
+   "4" (make-constructor
+        '([((sort pat)  xs ... / ⊙)
+           ((sort pat)  xs ... / (var ((sort char) / ⊙)))]
+          [((sort expr) xs ... / ⊙)
+           ((sort expr) xs ... / (var ((sort char) / ⊙)))]))
+      
+   ; destructors
+   
+   "x" (make-destructor
+        '([(xs ... / 0)
+           (xs ... / ⊙)]
+          [(xs ... / (var a))
+           (xs ... / ⊙)]
+          [(xs ... / (app a b))
+           (xs ... / ⊙)]
+          [(xs ... / (λ (a) b))
+           (xs ... / ⊙)]
+          ))
+
+   ; movements
+   
+   "up" (make-movement
+         '([(◇ a ... (▹ As ... / b) c ...)
             (◇ a ... (▹ As ... / b) c ...)]
            [⋱
              (As ... / (λ ((▹ Bs ... / a)) b))
              (▹ As ... / (λ ((Bs ... / a)) b))]
            [⋱
              (As ... / (a ... (▹ Bs ... / b) c ...))
-             (▹ As ... / (a ... (Bs ... / b) c ...))]
-           )]
-    ["down" ([⋱
+             (▹ As ... / (a ... (Bs ... / b) c ...))]))
+
+   "down" (make-movement
+           '([⋱
                (▹ As ... / ⊙)
                (▹ As ... / ⊙)]
              [⋱
                (▹ As ... / 0)
                (▹ As ... / 0)]
-             
              [⋱
-               (▹ As ... / (var (Bs ... / b)))
-               (As ... / (var (▹ Bs ... / b)))]
-             [⋱
-               (▹ As ... / (app (Bs ... / a) b))
-               (As ... / (app (▹ Bs ... / a) b))]
-             [⋱
-               (▹ As ... / (λ ((Bs ... / a)) b))
-               (As ...  / (λ ((▹ Bs ... / a)) b))]
-             )]
-    ["left" ([⋱
+               (▹ As ... / (ctx ⋱ (sort Bs ... / b)))
+               (As ... / (ctx ⋱ (▹ sort Bs ... / b)))]
+             ; note this selects the next sorted expression
+             ; notably, it descends into lambda params list
+             ))
+
+   "left" (make-movement
+           '([⋱
                (◇ (▹ As ... / c))
                (◇ (▹ As ... / c))]
              [⋱
@@ -183,33 +256,19 @@
                ((▹ As ... / c) d ...)]
              [⋱
                (a ... (As ... / b) (▹ Bs ... / c) d ...)
-               (a ... (▹ As ... / b) (Bs ... / c) d ...)]
-             )]
-    ["right" ([⋱
+               (a ... (▹ As ... / b) (Bs ... / c) d ...)]))
+
+   "right" (make-movement
+            '([⋱
                 (λ ((▹ As ... / a)) (Bs ... / b))
                 (λ ((As ... / a)) (▹ Bs ... / b))]
               [⋱
                 (a ... (▹ As ... / b) (Bs ... / c) d ...)
-                (a ... (As ... / b) (▹ Bs ... / c) d ...)]
-              )]
-    ["x" ([⋱
-            (▹ As ... / 0)
-            (▹ As ... / ⊙)]
-          [⋱
-            (▹ As ... / (var a))
-            (▹ As ... / ⊙)]
-          [⋱
-            (▹ As ... / (app a b))
-            (▹ As ... / ⊙)]
-          [⋱
-            (▹ As ... / (λ (a) b))
-            (▹ As ... / ⊙)]
-          )]))
+                (a ... (As ... / b) (▹ Bs ... / c) d ...)]))
+   
+   ))
 
 
-(define (get-transform key)
-  (let ([res (assoc key keymap)])
-    (if res (second res) '([a a]))))
 
 ; perform a sequence of actions
 (define (do-seq stx actions)
@@ -247,6 +306,27 @@
      (hash-set*
       state
       'stx inserted-result)]))
+
+
+(define (apply-> transform state)
+  (define update (curry hash-set* state))
+  (define-from state
+    stx mode transforms messages)
+  (match transform
+    [`(compose-> ,x)
+     (apply-> x state)]
+    [`(compose-> ,xs  ..1 ,x)
+     (apply-> `(compose-> ,@xs)
+              (apply-> x state))]
+    [(-> 'runtime _ t)
+     (match (runtime-match literals t stx)
+       ['no-match state]
+       [new-stx
+        (update
+         'stx new-stx
+         'transforms `(,t ,@transforms)
+         'messages `("performed action" ,@messages)
+         )])]))
 
 
 (define (mode:navigate key state)
@@ -301,21 +381,17 @@
     ; BUG for UNDO: do 0 0 0 u x u z results in 'no-match
     ["z"  (match transforms
             ['() (update 'messages
-                         (cons "no undo states" messages))]
-            [_ (update 'messages (cons "reverting to previous state" messages)
+                         `("no undo states" ,messages))]
+            [_ (update 'messages `("reverting to previous state" ,@messages)
                        'stx (do-seq (hash-ref initial-state 'stx)
-                                    (rest transforms))
+                                    (reverse (rest transforms)))
                        'transforms (rest transforms))])]
     ; transform keys
-    [_ (define transform (get-transform key))
-       #;(println transform)
-       (match (runtime-match literals transform stx)
-         ['no-match state]
-         [new-stx (update
-                   'stx new-stx
-                   'transforms (cons transform transforms)
-                   'messages (cons "performed action" messages)
-                   )])]))
+    [_
+     (define transform
+       (hash-ref keymap key identity->))
+     (apply-> transform state)]))
+
 
 (define (mode-menu key state)
   (define-from state stx)
@@ -452,7 +528,7 @@ create list of rhs templates
   (match state
     [(hash-table ('stx stx))
      #;(render stx)
-     (text (pretty-format (project stx))
+     (text (pretty-format (project stx) 100)
            24 "black")]))
 
 

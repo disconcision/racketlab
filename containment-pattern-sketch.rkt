@@ -1,6 +1,12 @@
 #lang racket
 
 
+
+#| 2018.10
+   everything below is historical.
+   all of this is now fully implemented in fructerm and f-match. |#
+
+
 #| 2018.06
    notes on containments patterns |#
 
@@ -162,12 +168,17 @@
   (define body `(list . ,(for/list ([sym syms] [x xs]) (if (one? x) sym 0))))  
   (eval `(lambda ,args ,body) ns))
 
-(require rackunit)
-(check-equal? ((fn '(0 0 1 0 1)) 3 4)
-              '(0 0 3 0 4))
+; but samth made a better suggestion; using variadic functions and procedure-reduce-arity
+; with this, no eval use should be necessary
 
+; -----------------------------------------------------
 
-; multi-element containments attempt -> success!
+; multi-element containments attempt
+
+; the below proved a success!
+; the work here has been cleaned up and moved to the fructerm library
+; initially under fructerm-common.rkt
+
 ; map a1 over list. want it to return either same (list or symbol) is no hits below
 ; or a fn if there is a hit
 ; so we have a list of non-fns and fns
@@ -175,44 +186,18 @@
 ; so we make a variadic fn. it takes a list, and then we subdivide the list according to the fn arities
 ; hmm so maybe return a zero-arg constant fn in no-hit case....
 
+;(define (multi-split ls lengths)
 ; splits ls into segments of lengths
-(define (multi-split ls lengths)
-       (unless (equal? (length ls)
-                       (apply + lengths))
-         (error "length of list doesn't partition"))
-       (define-values (actual extra)
-         (for/fold ([acc '()]
-                    [ls ls])
-                   ([l lengths])
-           (define-values (this others)
-             (split-at ls l))
-           (values (cons this acc) others)))
-       (reverse actual))
 
+; (define (multi-containment xs target)
 ; returns context fn
 ; i.e. a fn which can be used to replace
 ; all nested subcomponents equal to target in xs
 ; (returned fn takes #args = #occurences of target in xs)
-(define (multi-containment xs target)
-  (match xs
-    [(== target) (λ (x) x)]
-    [(? (compose not list?)) (λ () xs)]
-    [(? list?)
-     (define subfns
-       (map (λ (x) (multi-containment x target)) xs))
-     (define subfn-arities
-       (map procedure-arity subfns))
-     (define (fn-candidate . args)
-       (for/list ([subfn subfns]
-                  [arg-list (multi-split args subfn-arities)])
-         (apply subfn arg-list)))
-     (procedure-reduce-arity fn-candidate (apply + subfn-arities))]))
-
-(check-equal? ((multi-containment '(0 1 (0 1 (1 0)) 0 1) 1) 3 4 5 6)
-                '(0 3 (0 4 (5 0)) 0 6))
 
 
 
+; -----------------------------------------------------
 
 #| remember these more exotic ideas (taken from fructerm-old.rkt)
 

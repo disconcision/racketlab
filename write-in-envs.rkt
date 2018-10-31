@@ -59,13 +59,20 @@
                          ,(body-anns ... / body)))
      (('in-scope env) top-rest ... /
                       `(λ (,(a ... / `(var ,(b ... / id))))
-                         ,(W ( ('in-scope `(,id ,@env)) body-anns ... / body))))]
+                         ,(W (('in-scope `(,id ,@env)) body-anns ... / body))))]
 
     [(('in-scope env) top-rest ... /
                       `(λ (,(a ... / '⊙))
                          ,(body-anns ... / body)))
      (('in-scope env) top-rest ... /
                       `(λ (,(a ... / '⊙))
+                         ,(W (('in-scope env) body-anns ... / body))))]
+    
+    [(('in-scope env) top-rest ... /
+                      `(λ (,(a ... / b))
+                         ,(body-anns ... / body)))
+     (('in-scope env) top-rest ... /
+                      `(λ (,(a ... / b))
                          ,(W (body-anns ... / body))))]
 
     [(('in-scope env) top-rest ... /
@@ -80,7 +87,7 @@
                       `(app ,(W (('in-scope env) a ... / f-expr))
                             ,(W (('in-scope env) b ... / a-expr))))]
 
-    [_ (println stx) (error "error in write-in-envs")]
+    [_ (println `(write-in-envs ,stx)) (error "error in write-in-envs")]
     ))
 
 
