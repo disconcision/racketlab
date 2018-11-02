@@ -177,24 +177,22 @@
    ; constructors
    
    "1" (make-constructor
-        '([((sort expr) xs ... / ⊙)
-           ((sort expr) xs ... / 0)])
+        '([([sort expr] xs ... / ⊙)
+           ([sort expr] xs ... / 0)])
         )
    "2" (make-constructor
-        '([((sort expr) As ... / ⊙)
-           ((sort expr) As ... /
-                        (app ( (sort expr) / ⊙)
-                             ((sort expr) / ⊙)))]))
+        '([([sort expr] xs ... / ⊙)
+           ([sort expr] xs ... / (app ([sort expr] / ⊙)
+                                      ([sort expr] / ⊙)))]))
    "3" (make-constructor
-        '([((sort expr) As ... / ⊙)
-           ((sort expr) As ... /
-                        (λ (((sort pat) / ⊙))
-                          ((sort expr) / ⊙)))]))
+        '([([sort expr] xs ... / ⊙)
+           ([sort expr] xs ... / (λ (([sort pat] / ⊙))
+                                   ([sort expr] / ⊙)))]))
    "4" (make-constructor
-        '([((sort pat)  xs ... / ⊙)
-           ((sort pat)  xs ... / (var ((sort char) / ⊙)))]
-          [((sort expr) xs ... / ⊙)
-           ((sort expr) xs ... / (var ((sort char) / ⊙)))]))
+        '([([sort pat]  xs ... / ⊙)
+           ([sort pat]  xs ... / (var ([sort char] / ⊙)))]
+          [([sort expr] xs ... / ⊙)
+           ([sort expr] xs ... / (var ([sort char] / ⊙)))]))
       
    ; destructors
    

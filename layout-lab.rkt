@@ -339,3 +339,150 @@ vertical free-list
  ...
 
 |#
+
+
+; want to render a rounded-corner rect of specified size
+; optionally outlined, with outline outside size
+; optionally bracketted
+(require lang/posn)
+
+
+
+(define (rounded-rectangle width height radius my-color)
+  (define pen
+    (make-pen my-color (* 2 radius) "solid" "round" "round"))
+  (underlay/align
+   "middle" "middle"
+   ; bounding box
+   (rectangle width height "solid" (color 0 0 0 0))
+   (rectangle (- width (* 2 radius)) (- height (* 2 radius))
+              "solid" my-color)
+   (polygon
+    (list (make-posn radius radius)
+          (make-posn (- width radius) radius)
+          (make-posn (- width radius) (- height radius))
+          (make-posn radius (- height radius)))
+    "outline" pen)))
+
+(define (bracket-h width my-color corner-radius rect)
+  (underlay
+   (rounded-rectangle (+ (image-width rect) (* 2 width))
+                      (image-height rect)
+                      corner-radius my-color)
+   rect))
+
+(define (bracket-hl width my-color corner-radius rect)
+  (underlay/align "right" "middle"
+                  (rounded-rectangle (+ (image-width rect) width)
+                                     (image-height rect)
+                                     corner-radius my-color)
+                  rect))
+
+(define (bracket-hr width my-color corner-radius rect)
+  (underlay/align "left" "middle"
+                  (rounded-rectangle (+ (image-width rect) width)
+                                     (image-height rect)
+                                     corner-radius my-color)
+                  rect))
+
+(define (bracket-ht height my-color corner-radius rect)
+  (underlay/align "middle" "bottom"
+                  (rounded-rectangle (image-width rect)
+                                     (+ (image-height rect) height)
+                                     corner-radius my-color)
+                  rect))
+
+(define (bracket-hb height my-color corner-radius rect)
+  (underlay/align "middle" "top"
+                  (rounded-rectangle (image-width rect)
+                                     (+ (image-height rect) height)
+                                     corner-radius my-color)
+                  rect))
+
+
+(define space
+  (text/font " " 20 "black"
+             #f 'modern 'normal 'normal #f))
+
+
+(define stx '(lambda (junk) junk))
+
+(bracket-hl
+ 3 "red" 9
+ (overlay/align
+  "left" "middle"
+  (beside space
+          (text/font "lambda" 20 "black"
+                     #f 'modern 'normal 'normal #f)
+          space
+          (overlay/align "left" "middle"
+                         (text/font " junk" 20 "white"
+                                    #f 'modern 'normal 'normal #f)
+                         (rounded-rectangle 50 30 9 "blue")))
+  (rounded-rectangle 200 30 9 "gray")))
+
+(define (new-render stx (depth #t))
+  (define text-size 20)
+  (define form-color (color 0 130 214))
+  (define literal-color (color 150 0 20))
+  (define identifier-color "black")
+  (match stx
+    [`(ID ,xs ...) 0]
+    [`(CHAR ,x) 0]
+    [(? symbol? s)
+     (define my-color
+       (cond
+         [(member s '(lambda)) form-color]
+         [(member s '(false true)) literal-color]
+         [else identifier-color]))
+     (overlay (text/font (string-append (symbol->string s))
+                         text-size my-color
+                         #f 'modern 'normal 'normal #f)
+              ; below is padding
+              (rectangle text-size (+ 10 text-size) "solid" (color 0 0 0 0)))]
+    [`(,x ,xs ...)
+     (define imagelist-contents
+       (map (curryr new-render (not depth))
+            stx))
+     (define contents-with-spaces
+       `(,space ,(first imagelist-contents)
+                ,space ,@(for/fold ([acc '()])
+                                   ([a (rest imagelist-contents)])
+                           `(,@acc ,a ,space))))
+
+     (define image-contents
+       (cond [(equal? x 'and)
+              (beside/align "top"
+                            space (first imagelist-contents) space
+                            (apply above/align "left"
+                                   (rest imagelist-contents)) space)]
+             #;[(equal? x 'lambda)
+              (above/align "left"
+                           (beside/align "top"
+                                         space (first imagelist-contents)
+                                         space (second imagelist-contents)
+                                         space)
+                           (beside space space (third imagelist-contents)))]
+             [else
+              (apply beside/align "top"
+                     contents-with-spaces)]))
+     
+     (define backing
+       (rounded-rectangle
+        (image-width image-contents)
+        (image-height image-contents)
+        (sub1 (/ text-size 2))
+        (if depth
+            (color 200 200 200)
+            (color 170 170 170))))
+     (overlay/align "middle" "middle"
+                    image-contents
+                    backing)
+
+     ]))
+
+(new-render '(lambda (x) (and x (and true false))))
+
+; logic for bracketting
+; if horizontally formatted, right-bracket self
+; if vertical children, map right-bracket children
