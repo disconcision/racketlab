@@ -2,7 +2,8 @@
 
 (require "../projects/fructerm/fructerm.rkt"
          "write-in-envs.rkt"
-         "../projects/fructerm/f-match.rkt")
+         "../projects/fructerm/f-match.rkt"
+         "layout-lab-two.rkt")
 
 
 ; -------------------------------------------------
@@ -97,6 +98,10 @@
 (define literals
   #hash((var . ())
         (app . ())
+        (and . ())
+        (or . ())
+        (not . ())
+        (lambda . ())
         (λ . ())
         (let . ())
         (|| . ()) ; not sure about this one....
@@ -186,7 +191,7 @@
                                       ([sort expr] / ⊙)))]))
    "3" (make-constructor
         '([([sort expr] xs ... / ⊙)
-           ([sort expr] xs ... / (λ (([sort pat] / ⊙))
+           ([sort expr] xs ... / (λ ( / ([sort pat] / ⊙))
                                    ([sort expr] / ⊙)))]))
    "4" (make-constructor
         '([([sort pat]  xs ... / ⊙)
@@ -213,8 +218,8 @@
          '([(◇ a ... (▹ As ... / b) c ...)
             (◇ a ... (▹ As ... / b) c ...)]
            [⋱
-             (As ... / (λ ((▹ Bs ... / a)) b))
-             (▹ As ... / (λ ((Bs ... / a)) b))]
+             (As ... / (λ (Cs ... / (▹ Bs ... / a)) b))
+             (▹ As ... / (λ (Cs ... / (Bs ... / a)) b))]
            [⋱
              (As ... / (a ... (▹ Bs ... / b) c ...))
              (▹ As ... / (a ... (Bs ... / b) c ...))]))
@@ -244,11 +249,11 @@
                (app (▹ As ... / c) d ...)
                (app (▹ As ... / c) d ...)]
              [⋱
-               (λ ((▹ Bs ... / a)) b)
-               (λ ((▹ Bs ... / a)) b)]
+               (λ (Cs ... / (▹ Bs ... / a)) b)
+               (λ (Cs ... / (▹ Bs ... / a)) b)]
              [⋱
-               (λ ((As ... / a)) (▹ Bs ... / b))
-               (λ ((▹ As ... / a)) (Bs ... / b))]
+               (λ (Cs ... / (As ... / a)) (▹ Bs ... / b))
+               (λ (Cs ... /  (▹ As ... / a)) (Bs ... / b))]
              [⋱
                ((▹ As ... / c) d ...)
                ((▹ As ... / c) d ...)]
@@ -258,8 +263,8 @@
 
    "right" (make-movement
             '([⋱
-                (λ ((▹ As ... / a)) (Bs ... / b))
-                (λ ((As ... / a)) (▹ Bs ... / b))]
+                (λ (Cs ... / (▹ As ... / a)) (Bs ... / b))
+                (λ (Cs ... / (As ... / a)) (▹ Bs ... / b))]
               [⋱
                 (a ... (▹ As ... / b) (Bs ... / c) d ...)
                 (a ... (As ... / b) (▹ Bs ... / c) d ...)]))
@@ -521,12 +526,12 @@ create list of rhs templates
 
 
 ; output : state -> image
-(require "layout-lab.rkt")
+
 (define (output state)
   (match state
     [(hash-table ('stx stx))
-     #;(render stx)
-     (text (pretty-format (project stx) 100)
+     (render (second stx)) ; second to skip top
+     #;(text (pretty-format (project stx) 100)
            24 "black")]))
 
 
