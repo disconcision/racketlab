@@ -97,6 +97,8 @@
       (messages . ("hello world")))
 (define literals
   #hash((var . ())
+        (ref . ())
+        (id . ())
         (app . ())
         (and . ())
         (or . ())
@@ -110,6 +112,7 @@
         (▹ . ())
         (▹▹ . ())
         (⊙ . ())
+        (+ . ())
         (expr . ())
         (pat . ())
         (char .())))
@@ -191,14 +194,31 @@
                                       ([sort expr] / ⊙)))]))
    "3" (make-constructor
         '([([sort expr] xs ... / ⊙)
-           ([sort expr] xs ... / (λ ( / ([sort pat] / ⊙))
+           ([sort expr] xs ... / (λ ( / (([sort pat] / (id ([sort char] / ⊙)))))
                                    ([sort expr] / ⊙)))]))
+   #;(make-constructor
+      '([([sort expr] xs ... / ⊙)
+         ([sort expr] xs ... / (λ ( / (([sort pat] / ⊙)))
+                                 ([sort expr] / ⊙)))]))
    "4" (make-constructor
         '([([sort pat]  xs ... / ⊙)
            ([sort pat]  xs ... / (var ([sort char] / ⊙)))]
           [([sort expr] xs ... / ⊙)
            ([sort expr] xs ... / (var ([sort char] / ⊙)))]))
-      
+
+   "5" (make-constructor
+        '([([sort pat] xs ... / ⊙)
+           ([sort pat] xs ... / (id ([sort char] / ⊙)))]))
+   ; should make ⊙ into + above and below but....
+   "a" (-> 'runtime (set)
+           '([⋱
+              (xs ... / (id as ... (▹ ys ... / ⊙)))
+              (xs ... / (id as ... (ys ... / 'a) (▹ [sort char] / ⊙)))]))
+   "\b" (-> 'runtime (set)
+           '([⋱
+              (xs ... / (id as ... a (▹ ys ... / ⊙)))
+              (xs ... / (id as ... (▹ ys ... / ⊙)))]))
+   
    ; destructors
    
    "x" (make-destructor
@@ -206,9 +226,11 @@
            (xs ... / ⊙)]
           [(xs ... / (var a))
            (xs ... / ⊙)]
+          [(xs ... / (id a))
+           (xs ... / ⊙)]
           [(xs ... / (app a b))
            (xs ... / ⊙)]
-          [(xs ... / (λ (a) b))
+          [(xs ... / (λ a b))
            (xs ... / ⊙)]
           ))
 
@@ -218,56 +240,56 @@
          '([(◇ a ... (▹ As ... / b) c ...)
             (◇ a ... (▹ As ... / b) c ...)]
            [⋱
-             (As ... / (λ (Cs ... / (▹ Bs ... / a)) b))
-             (▹ As ... / (λ (Cs ... / (Bs ... / a)) b))]
+            (As ... / (λ (Cs ... / ((▹ Bs ... / a))) b))
+            (▹ As ... / (λ (Cs ... / ((Bs ... / a))) b))]
            [⋱
-             (As ... / (a ... (▹ Bs ... / b) c ...))
-             (▹ As ... / (a ... (Bs ... / b) c ...))]))
+            (As ... / (a ... (▹ Bs ... / b) c ...))
+            (▹ As ... / (a ... (Bs ... / b) c ...))]))
 
    "down" (make-movement
            '([⋱
-               (▹ As ... / ⊙)
-               (▹ As ... / ⊙)]
+              (▹ As ... / ⊙)
+              (▹ As ... / ⊙)]
              [⋱
-               (▹ As ... / 0)
-               (▹ As ... / 0)]
+              (▹ As ... / 0)
+              (▹ As ... / 0)]
              [⋱
-               (▹ As ... / (ctx ⋱ (sort Bs ... / b)))
-               (As ... / (ctx ⋱ (▹ sort Bs ... / b)))]
+              (▹ As ... / (ctx ⋱ (sort Bs ... / b)))
+              (As ... / (ctx ⋱ (▹ sort Bs ... / b)))]
              ; note this selects the next sorted expression
              ; notably, it descends into lambda params list
              ))
 
    "left" (make-movement
            '([⋱
-               (◇ (▹ As ... / c))
-               (◇ (▹ As ... / c))]
+              (◇ (▹ As ... / c))
+              (◇ (▹ As ... / c))]
              [⋱
-               (var (▹ As ... / c))
-               (var (▹ As ... / c))]
+              (var (▹ As ... / c))
+              (var (▹ As ... / c))]
              [⋱
-               (app (▹ As ... / c) d ...)
-               (app (▹ As ... / c) d ...)]
+              (app (▹ As ... / c) d ...)
+              (app (▹ As ... / c) d ...)]
              [⋱
-               (λ (Cs ... / (▹ Bs ... / a)) b)
-               (λ (Cs ... / (▹ Bs ... / a)) b)]
+              (λ (Cs ... / ((▹ Bs ... / a))) b)
+              (λ (Cs ... / ((▹ Bs ... / a))) b)]
              [⋱
-               (λ (Cs ... / (As ... / a)) (▹ Bs ... / b))
-               (λ (Cs ... /  (▹ As ... / a)) (Bs ... / b))]
+              (λ (Cs ... / ((As ... / a))) (▹ Bs ... / b))
+              (λ (Cs ... / ((▹ As ... / a))) (Bs ... / b))]
              [⋱
-               ((▹ As ... / c) d ...)
-               ((▹ As ... / c) d ...)]
+              ((▹ As ... / c) d ...)
+              ((▹ As ... / c) d ...)]
              [⋱
-               (a ... (As ... / b) (▹ Bs ... / c) d ...)
-               (a ... (▹ As ... / b) (Bs ... / c) d ...)]))
+              (a ... (As ... / b) (▹ Bs ... / c) d ...)
+              (a ... (▹ As ... / b) (Bs ... / c) d ...)]))
 
    "right" (make-movement
             '([⋱
-                (λ (Cs ... / (▹ As ... / a)) (Bs ... / b))
-                (λ (Cs ... / (As ... / a)) (▹ Bs ... / b))]
+               (λ (Cs ... / ((▹ As ... / a))) (Bs ... / b))
+               (λ (Cs ... / ((As ... / a))) (▹ Bs ... / b))]
               [⋱
-                (a ... (▹ As ... / b) (Bs ... / c) d ...)
-                (a ... (As ... / b) (▹ Bs ... / c) d ...)]))
+               (a ... (▹ As ... / b) (Bs ... / c) d ...)
+               (a ... (As ... / b) (▹ Bs ... / c) d ...)]))
    
    ))
 
@@ -532,7 +554,7 @@ create list of rhs templates
     [(hash-table ('stx stx))
      (render (second stx)) ; second to skip top
      #;(text (pretty-format (project stx) 100)
-           24 "black")]))
+             24 "black")]))
 
 
 ; MY LOVE FOR YOU IS LIKE A TRUCK
