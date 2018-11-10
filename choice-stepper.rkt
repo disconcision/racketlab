@@ -102,7 +102,7 @@
   (define new-stack
     (match state
       [(or (⋱ c `(▹ (next)))
-           (⋱ c `(▹ (-<)))) ; is this right?
+           (⋱ c `(▹ (-<))))
        (if (empty? stack)
            'done
            (begin
@@ -119,6 +119,7 @@
 
 
 (define (step-until-value stx stack)
+  (println stx)
   (define fully-evaluated?
     (disjoin (curry equal? 'done)
              (match-lambda? `(▹ ,(? value?)))))
@@ -130,14 +131,13 @@
                  `(,stx ,@(step-until-value (first stack)
                                             (rest stack)))))
       (let-values ([(new-stx new-stack) (step stx stack)])
-        (println new-stx)
+        
         (step-until-value new-stx new-stack))))
 
 
 (define (step-choice stx)
   (expr!? stx)
   (define redex-stx `(▹ ,stx))
-  (println redex-stx)
   (define initial-stack '())
   (define results (step-until-value redex-stx initial-stack))
   (for/fold ([acc '()])
