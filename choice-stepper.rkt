@@ -7,7 +7,7 @@
 
 ; tests commented out to supress printing
 
-#;(module+ test
+(module+ test
     (require rackunit)
     (check-equal? (step-choice 0)
                   '(0))
@@ -73,6 +73,11 @@
     [(? list?) (andmap value? stx)]))
 
 
+(define-values (peek pop push)
+  ; stack implementation
+  (values first rest cons))
+
+
 (define (step stx stack)
   ; small-steps state where ▹ indicates current redex
   
@@ -82,7 +87,7 @@
            (⋱ c `(▹ (-<))))
        (if (empty? stack)
            `(▹ done)
-           (first stack))]
+           (peek stack))]
       [(⋱ c `(▹ (-< ,a)))
        (⋱ c `(▹ ,a))]
       [(⋱ c `(▹ (-< ,a ,as ...)))
@@ -104,12 +109,15 @@
            '()
            (begin
              (println `(pop-stack))
-             (rest stack)))]
+             (pop stack)))]
       [(⋱ c `(▹ (-< ,a)))
        stack]
       [(⋱ c `(▹ (-< ,a ,as ...)))
-       (println `(push-stack: ,(⋱ c `(▹ (-< ,@as)))))
-       `(,(⋱ c `(▹ (-< ,@as))) ,@stack)]
+       ; alternate display option with ▹ seperating
+       ; continuation from redex
+       #;(println `(push-stack: ,(⋱ c `(▹ (-< ,@as)))))
+       (println `(push-stack: (,(c '_) (-< ,@as))))
+       (push (⋱ c `(▹ (-< ,@as))) stack)]
       [_ stack]))
 
   (values new-stx new-stack))
