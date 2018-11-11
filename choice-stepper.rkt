@@ -6,8 +6,7 @@
 
 
 ; tests commented out to supress printing
-
-(module+ test
+#;(module+ test
     (require rackunit)
     (check-equal? (step-choice 0)
                   '(0))
@@ -69,7 +68,6 @@
     ['(next) #f]
     [`(list ,xs ...) #f]
     [`(-< ,xs ...) #f]
-    #;[`(▹ ,x) #f]
     [(? list?) (andmap value? stx)]))
 
 
@@ -113,10 +111,10 @@
       [(⋱ c `(▹ (-< ,a)))
        stack]
       [(⋱ c `(▹ (-< ,a ,as ...)))
-       ; alternate display option with ▹ seperating
-       ; continuation from redex
+       ; alternate display option with ▹ 
+       ; seperating continuation from redex
        #;(println `(push-stack: ,(⋱ c `(▹ (-< ,@as)))))
-       (println `(push-stack: (,(c '_) (-< ,@as))))
+       (println `(push-stack: ,(c '_) (-< ,@as)))
        (push (⋱ c `(▹ (-< ,@as))) stack)]
       [_ stack]))
 
@@ -127,8 +125,7 @@
   ; steps stx/stack until stx is a value and the stack is empty
   (println stx)
   (define fully-evaluated?
-    (disjoin (match-lambda? `(▹ done))
-             (match-lambda? `(▹ ,(? value?)))))
+    (match-lambda? `(▹ ,(? value?))))
   (if (not (fully-evaluated? stx))
       (let-values ([(new-stx new-stack) (step stx stack)])
         (step-until-value new-stx new-stack))
@@ -137,8 +134,9 @@
           [(equal? bare-stx 'done) '()]
           [(empty? stack) `(,bare-stx)]
           [else (println `(pop-stack-auto))
-                `(,bare-stx ,@(step-until-value (first stack)
-                                                (rest stack)))]))))
+                `(,bare-stx ,@(step-until-value
+                               (peek stack)
+                               (pop stack)))]))))
 
 
 (define (step-choice stx)
