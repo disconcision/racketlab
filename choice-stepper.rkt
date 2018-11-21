@@ -6,56 +6,56 @@
 
 
 ; tests commented out to supress printing
-#;(module+ test
-    (require rackunit)
-    (check-equal? (step-choice 0)
-                  '(0))
-    (check-equal? (step-choice '(list))
-                  '(()))
-    (check-equal? (step-choice '(list 1 2 3))
-                  '((1 2 3)))
-    (check-equal? (step-choice '(list 1 (list 2 3) 4))
-                  '((1 (2 3) 4)))
+(module+ test
+  (require rackunit)
+  (check-equal? (step-choice 0)
+                '(0))
+  (check-equal? (step-choice '(list))
+                '(()))
+  (check-equal? (step-choice '(list 1 2 3))
+                '((1 2 3)))
+  (check-equal? (step-choice '(list 1 (list 2 3) 4))
+                '((1 (2 3) 4)))
 
-    (check-equal? (step-choice '(next))
-                  '())
+  (check-equal? (step-choice '(next))
+                '())
 
-    (check-equal? (step-choice '(-<))
-                  '())
-    (check-equal? (step-choice '(-< 1))
-                  '(1))
-    (check-equal? (step-choice '(-< 1 2 3))
-                  '(1 2 3))
+  (check-equal? (step-choice '(-<))
+                '())
+  (check-equal? (step-choice '(-< 1))
+                '(1))
+  (check-equal? (step-choice '(-< 1 2 3))
+                '(1 2 3))
 
-    (check-equal? (step-choice '(list 0 (-< 1 2 3)))
-                  '((0 1) (0 2) (0 3)))
-    (check-equal? (step-choice '(list (-< 1 2) (-< 3 4)))
-                  '((1 3) (1 4) (2 3) (2 4)))
-    (check-equal? (step-choice '(-< (list 1 2) 3))
-                  '((1 2) 3))
-    (check-equal? (step-choice '(-< (list (-< 1 2)) 3))
-                  '((1) (2) 3))
+  (check-equal? (step-choice '(list 0 (-< 1 2 3)))
+                '((0 1) (0 2) (0 3)))
+  (check-equal? (step-choice '(list (-< 1 2) (-< 3 4)))
+                '((1 3) (1 4) (2 3) (2 4)))
+  (check-equal? (step-choice '(-< (list 1 2) 3))
+                '((1 2) 3))
+  (check-equal? (step-choice '(-< (list (-< 1 2)) 3))
+                '((1) (2) 3))
 
-    (check-equal? (step-choice '(list (next)))
-                  '())
-    (check-equal? (step-choice '(list (-<)))
-                  '())
+  (check-equal? (step-choice '(list (next)))
+                '())
+  (check-equal? (step-choice '(list (-<)))
+                '())
 
-    (check-equal? (step-choice '(-< (-< (next) 2) 3))
-                  '(2 3))
-    (check-equal? (step-choice '(-< (list (-< 1 2) (next)) 3))
-                  '(3)))
+  (check-equal? (step-choice '(-< (-< (next) 2) 3))
+                '(2 3))
+  (check-equal? (step-choice '(-< (list (-< 1 2) (next)) 3))
+                '(3)))
 
 
 (define (expr!? stx)
   ; errors if stx is syntacically incorrect
   (match stx
-    [(? number?) void]
-    [`(next) void]
+    [(? number?) stx]
+    [`(next) `(next)]
     [`(list ,xs ...)
-     (map expr!? xs)]
+     `(list ,@(map expr!? xs))]
     [`(-< ,xs ...)
-     (map expr!? xs)]
+     `(-< ,@(map expr!? xs))]
     [_ (error (~a `(bad syntax: ,stx)))]))
 
 
@@ -64,9 +64,8 @@
   (match stx
     [(? number?) #t]
     ['() #t]
-    ['done #t]
-    ['(next) #f]
     [`(list ,xs ...) #f]
+    [`(next) #f]
     [`(-< ,xs ...) #f]
     [(? list?) (andmap value? stx)]))
 
@@ -81,38 +80,39 @@
   
   (define new-stx
     (match stx
-      [(or (⋱ c `(▹ (next)))
-           (⋱ c `(▹ (-<))))
+      [(or (⋱ c `(▹ (-<)))
+           (⋱ c `(▹ (next))))
        (if (empty? stack)
-           `(▹ done)
+           `done
            (peek stack))]
       [(⋱ c `(▹ (-< ,a)))
        (⋱ c `(▹ ,a))]
       [(⋱ c `(▹ (-< ,a ,as ...)))
        (⋱ c `(▹ (-< ,a)))]
-      [(⋱ c `(▹ (list)))
-       (⋱ c `(▹ ()))]
+      ; if all args to list are values, return literal
+      [(⋱ c `(▹ (list ,(? value? xs) ...)))
+       (⋱ c `(▹ ,xs))]
+      ; otherwise, step into the list,
       [(⋱ c `(▹ (list ,x ,xs ...)))
        (⋱ c `(list (▹ ,x) ,@xs))]
+      ; evaluating the arguments left-to-right,
       [(⋱ c `(list ,xs ... (▹ ,(? value? x)) ,y ,ys ...))
        (⋱ c `(list ,@xs ,x (▹ ,y) ,@ys))]
+      ; stepping out after the last arg is evaluated
       [(⋱ c `(list ,xs ... (▹ ,(? value? x))))
-       (⋱ c `(▹ (,@xs ,x)))]))
+       (⋱ c `(▹ (list ,@xs ,x)))]))
 
   (define new-stack
     (match stx
-      [(or (⋱ c `(▹ (next)))
-           (⋱ c `(▹ (-<))))
+      [(or (⋱ c `(▹ (-<)))
+           (⋱ c `(▹ (next))))
        (if (empty? stack)
            '()
            (begin
              (println `(pop-stack))
              (pop stack)))]
-      [(⋱ c `(▹ (-< ,a)))
-       stack]
-      [(⋱ c `(▹ (-< ,a ,as ...)))
-       ; alternate display option with ▹ 
-       ; seperating continuation from redex
+      [(⋱ c `(▹ (-< ,a ,as ..1)))
+       ; alternate display: (continuation (▹ redex))
        #;(println `(push-stack: ,(⋱ c `(▹ (-< ,@as)))))
        (println `(push-stack: ,(c '_) (-< ,@as)))
        (push (⋱ c `(▹ (-< ,@as))) stack)]
@@ -123,28 +123,26 @@
 
 (define (step-until-value stx stack)
   ; steps stx/stack until stx is a value and the stack is empty
-  (println stx)
-  (define fully-evaluated?
-    (match-lambda? `(▹ ,(? value?))))
-  (if (not (fully-evaluated? stx))
-      (let-values ([(new-stx new-stack) (step stx stack)])
-        (step-until-value new-stx new-stack))
-      (match-let ([`(▹ ,bare-stx) stx])
-        (cond
-          [(equal? bare-stx 'done) '()]
-          [(empty? stack) `(,bare-stx)]
-          [else (println `(pop-stack-auto))
-                `(,bare-stx ,@(step-until-value
-                               (peek stack)
-                               (pop stack)))]))))
+  (unless ((match-lambda? `done) stx)
+    (println stx))
+  (match stx
+    ; if stx is done, the stack is empty
+    [`done '()]
+    ; if stx is fully evaluated, check the stack
+    [`(▹ ,(? value? v))
+     (match stack
+       ['() `(,v)]
+       [`(,x ,xs ...)
+        (println `(pop-stack-auto))
+        `(,v ,@(step-until-value x xs))])]
+    ; otherwise, keep evaluating
+    [_ (call-with-values (thunk (step stx stack))
+                         step-until-value)]))
 
 
 (define (step-choice stx)
   ; returns a list of all results from evaluating stx
-  (expr!? stx)
-  (step-until-value `(▹ ,stx) '()))
-
-
+  (step-until-value `(▹ ,(expr!? stx)) '()))
 
 
 
